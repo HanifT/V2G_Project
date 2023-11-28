@@ -192,7 +192,6 @@ plt.tight_layout()
 plt.show()
 
 
-
 charging_sessions = full_events.loc[(full_events["energy[charge_type][type]"] != "NA") & ((full_events["Make"] == "Tesla") | (full_events["Make"] == "Chevrolet"))]
 charging_sessions = charging_sessions.loc[charging_sessions["total_energy"] > 2]
 charging_sessions = charging_sessions.loc[~((charging_sessions["total_energy"] < 10) & (charging_sessions["duration_charging"] > 10*3600))]

@@ -244,8 +244,10 @@ def read_clean(df_timeseries2, vehicle_name):
     test["Origin_label"] = test["Destination_label"].shift(1)
     test.loc[test["cluster"] == -1, "cluster"] = 99
     test['new_Destination'] = test.apply(lambda row: f"{row['Destination_label']} {row['cluster']}" if row['Destination_label'] == 'Other' else row['Destination_label'], axis=1)
-
-    return df5, test
+    data2 = data1.copy()
+    data2 = data2[data2["vehicle_name"] == vehicle_name]
+    data2 = pd.merge(data2, test[["id", "Destination_label", "Origin_label", "new_Destination"]], how="left", on="id")
+    return df5, test, data2
 
 
 def split_func(input_df):
