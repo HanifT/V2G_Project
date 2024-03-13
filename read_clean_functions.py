@@ -267,7 +267,7 @@ def split_func(input_df):
 
 
 def data_departure(input_df):
-    input_df = input_df[["month", "day_name", "hour", "battery[soc][start][trip]", "HVBattSOC", "OutsideAirTemp", "Lat", "Long", "Origin_label", "distance_home", "distance_work", "next_departure"]]
+    input_df = input_df[["month", "day_name", "hour", "battery[soc][start][trip]", "HVBattSOC", "OutsideAirTemp", "Lat", "Long", "Origin_label","Destination_label", "energy[charge_type][type]_x", "distance", "next_departure"]]
 
     return input_df
 
@@ -664,3 +664,22 @@ def plot_autocorrelation_month(df, lag_range, vehicle_name):
     plt.show()
 
     return autocorr_month_df["Autocorrelation"]
+
+
+def r_sq(df1, df2):
+    # Calculate mean of actual values
+    mean_actual = np.mean(df1)
+
+    # Calculate the sum of squared differences between actual and predicted
+    ss_residual = np.sum((df1 - df2) ** 2)
+
+    # Calculate the total sum of squares
+    ss_total = np.sum((df1 - mean_actual) ** 2)
+
+    # Calculate R-squared
+    r_squared = 1 - (ss_residual / ss_total)
+
+    print(f'R-squared: {r_squared:.4f}')
+
+    return r_squared
+
