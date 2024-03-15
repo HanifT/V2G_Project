@@ -7,7 +7,7 @@ from collections import Counter
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
 
-
+# %%
 def read_time_series(all_files):
     df = pd.concat((pd.read_csv(f) for f in all_files))
     df = df.sort_values("Time")
