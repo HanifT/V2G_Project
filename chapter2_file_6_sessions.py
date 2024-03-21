@@ -6,6 +6,7 @@ from parking import (v2g_normal, box_plot_with_stats_for_three,
                      conditionally_update_start_time, conditionally_update_end_time, conditionally_update_start_time_charging, conditionally_update_end_time_charging)
 import warnings
 warnings.filterwarnings("ignore")
+# %%
 ##################################################################################################################
 ##################################################################################################################
 # Section 1
@@ -14,6 +15,7 @@ warnings.filterwarnings("ignore")
 # V2G_cap_charging_rate = pd.read_csv("V2G_cap_charging_rate.csv")
 # v2g_tou = pd.read_csv("v2g_tou.csv")
 # final_dataframes_charging = charging_dataframe(final_dataframes, 0)
+# %%
 ##################################################################################################################
 ##################################################################################################################
 parking_dataframe_extra = parking_sessions(final_dataframes)
@@ -77,7 +79,7 @@ test0.rename(columns={"charging_v2g_energy_12k": "V2G 12 - kW"}, inplace=True)
 test0.rename(columns={"charging_v2g_energy_19k": "V2G 19 - kW"}, inplace=True)
 extra_extra_kwh_parking(test0)
 ############################################################################################################
-
+# %%
 v2g_test = pd.DataFrame({"year": v2g_tou_parking["year"]})
 v2g_test_12 = pd.concat([v2g_test, V2G_hourly_12_tou_p], axis=1)
 v2g_test_6 = pd.concat([v2g_test, V2G_hourly_6_tou_p], axis=1)
@@ -170,6 +172,7 @@ plt.tight_layout()  # Adjust layout to prevent overlap
 plt.show()
 
 ################################################################
+# %%
 average_energy = v2g_tou_parking[["vehicle_name", "discharge_start", "discharge_end", "year", "month", "day", "V2G_cap_6k_tou", "V2G_cap_12k_tou", "V2G_cap_19k_tou"]]
 
 average_energy_final1 = average_energy.groupby(["vehicle_name", "year", "month", "day"])[["V2G_cap_6k_tou", "V2G_cap_12k_tou", "V2G_cap_19k_tou"]].sum().reset_index().sort_values(by=["vehicle_name", "year", "month", "day"])

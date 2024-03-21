@@ -1,6 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-
+import json
 # %%
 
 
@@ -55,13 +55,39 @@ class RTPricer:
 rt_pricer = RTPricer(combined_demand_PGE, combined_price_PGE, 405, 460, 16, 21, "PGE")
 combined_price_PGE_new, adj_factor_PGE = rt_pricer.calculate_rt_price()
 rt_pricer.plot_histogram()
+combined_price_PGE_new["INTERVALSTARTTIME_PST"] = pd.to_datetime(combined_price_PGE_new["INTERVALSTARTTIME_GMT"]).dt.tz_convert('America/Los_Angeles')
+combined_price_PGE_new['hour_of_year_start'] = combined_price_PGE_new['INTERVALSTARTTIME_PST'].apply(lambda x: ((x.dayofyear - 1) * 24 + x.hour))
+combined_price_PGE_new = combined_price_PGE_new.sort_values(by="INTERVALSTARTTIME_PST").reset_index(drop=True)
+combined_price_PGE_average = combined_price_PGE_new[["hour_of_year_start", "rt_price"]]
+combined_price_PGE_average = combined_price_PGE_average.groupby("hour_of_year_start")["rt_price"].mean()
+combined_price_PGE_average = pd.concat([combined_price_PGE_average,combined_price_PGE_average], axis=0).reset_index(drop=True).to_dict()
 
 rt_pricer = RTPricer(combined_demand_SCE, combined_price_SCE, 275, 475, 16, 21, "SCE")
 combined_price_SCE_new, adj_factor_SCE = rt_pricer.calculate_rt_price()
 rt_pricer.plot_histogram()
+combined_price_SCE_new["INTERVALSTARTTIME_PST"] = pd.to_datetime(combined_price_SCE_new["INTERVALSTARTTIME_GMT"]).dt.tz_convert('America/Los_Angeles')
+combined_price_SCE_new['hour_of_year_start'] = combined_price_SCE_new['INTERVALSTARTTIME_PST'].apply(lambda x: ((x.dayofyear - 1) * 24 + x.hour))
+combined_price_SCE_new = combined_price_SCE_new.sort_values(by="INTERVALSTARTTIME_PST").reset_index(drop=True)
+combined_price_SCE_average = combined_price_SCE_new[["hour_of_year_start", "rt_price"]]
+combined_price_SCE_average = combined_price_SCE_average.groupby("hour_of_year_start")["rt_price"].mean()
+combined_price_SCE_average = pd.concat([combined_price_SCE_average,combined_price_SCE_average], axis=0).reset_index(drop=True).to_dict()
 
 rt_pricer = RTPricer(combined_demand_SDGE, combined_price_SDGE, 312, 417, 17, 21, "PGE")
 combined_price_SDGE_new, adj_factor_SDGE = rt_pricer.calculate_rt_price()
 rt_pricer.plot_histogram()
+combined_price_SDGE_new["INTERVALSTARTTIME_PST"] = pd.to_datetime(combined_price_SDGE_new["INTERVALSTARTTIME_GMT"]).dt.tz_convert('America/Los_Angeles')
+combined_price_SDGE_new['hour_of_year_start'] = combined_price_SDGE_new['INTERVALSTARTTIME_PST'].apply(lambda x: ((x.dayofyear - 1) * 24 + x.hour))
+combined_price_SDGE_new = combined_price_SDGE_new.sort_values(by="INTERVALSTARTTIME_PST").reset_index(drop=True)
+combined_price_SDGE_new_average = combined_price_SDGE_new[["hour_of_year_start", "rt_price"]]
+combined_price_SDGE_new_average = combined_price_SDGE_new_average.groupby("hour_of_year_start")["rt_price"].mean()
+combined_price_SDGE_new_average = pd.concat([combined_price_SDGE_new_average,combined_price_SDGE_new_average], axis=0).reset_index(drop=True).to_dict()
 
+with open("combined_price_PGE_average.json", "w") as json_file:
+    json.dump(combined_price_PGE_average, json_file)
+
+with open("combined_price_SCE_average.json", "w") as json_file:
+    json.dump(combined_price_SCE_average, json_file)
+
+with open("combined_price_SDGE_new_average.json", "w") as json_file:
+    json.dump(combined_price_SDGE_new_average, json_file)
 
