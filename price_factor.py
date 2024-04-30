@@ -60,7 +60,7 @@ combined_price_PGE_new['hour_of_year_start'] = combined_price_PGE_new['INTERVALS
 combined_price_PGE_new = combined_price_PGE_new.sort_values(by="INTERVALSTARTTIME_PST").reset_index(drop=True)
 combined_price_PGE_average = combined_price_PGE_new[["hour_of_year_start", "rt_price"]]
 combined_price_PGE_average = combined_price_PGE_average.groupby("hour_of_year_start")["rt_price"].mean()
-combined_price_PGE_average = pd.concat([combined_price_PGE_average,combined_price_PGE_average], axis=0).reset_index(drop=True).to_dict()
+combined_price_PGE_average = pd.concat([combined_price_PGE_average, combined_price_PGE_average, combined_price_PGE_average], axis=0).reset_index(drop=True).to_dict()
 
 rt_pricer = RTPricer(combined_demand_SCE, combined_price_SCE, 275, 475, 16, 21, "SCE")
 combined_price_SCE_new, adj_factor_SCE = rt_pricer.calculate_rt_price()
@@ -70,7 +70,7 @@ combined_price_SCE_new['hour_of_year_start'] = combined_price_SCE_new['INTERVALS
 combined_price_SCE_new = combined_price_SCE_new.sort_values(by="INTERVALSTARTTIME_PST").reset_index(drop=True)
 combined_price_SCE_average = combined_price_SCE_new[["hour_of_year_start", "rt_price"]]
 combined_price_SCE_average = combined_price_SCE_average.groupby("hour_of_year_start")["rt_price"].mean()
-combined_price_SCE_average = pd.concat([combined_price_SCE_average,combined_price_SCE_average], axis=0).reset_index(drop=True).to_dict()
+combined_price_SCE_average = pd.concat([combined_price_SCE_average, combined_price_SCE_average, combined_price_SCE_average], axis=0).reset_index(drop=True).to_dict()
 
 rt_pricer = RTPricer(combined_demand_SDGE, combined_price_SDGE, 312, 417, 17, 21, "PGE")
 combined_price_SDGE_new, adj_factor_SDGE = rt_pricer.calculate_rt_price()
@@ -80,8 +80,9 @@ combined_price_SDGE_new['hour_of_year_start'] = combined_price_SDGE_new['INTERVA
 combined_price_SDGE_new = combined_price_SDGE_new.sort_values(by="INTERVALSTARTTIME_PST").reset_index(drop=True)
 combined_price_SDGE_new_average = combined_price_SDGE_new[["hour_of_year_start", "rt_price"]]
 combined_price_SDGE_new_average = combined_price_SDGE_new_average.groupby("hour_of_year_start")["rt_price"].mean()
-combined_price_SDGE_new_average = pd.concat([combined_price_SDGE_new_average,combined_price_SDGE_new_average], axis=0).reset_index(drop=True).to_dict()
+combined_price_SDGE_new_average = pd.concat([combined_price_SDGE_new_average, combined_price_SDGE_new_average, combined_price_SDGE_new_average], axis=0).reset_index(drop=True).to_dict()
 
+# %%
 with open("combined_price_PGE_average.json", "w") as json_file:
     json.dump(combined_price_PGE_average, json_file)
 
