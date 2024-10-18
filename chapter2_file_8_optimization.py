@@ -124,21 +124,6 @@ def create_model_and_export_excel(charging_speed, ghg_cost_per_tonne, x_chr_doma
     ################################################################################################################
     ################################################################################################################
 
-    # degradation_parameters = {
-    #     # Battery capacity group: (slope, intercept)
-    #     60: (8.78e-03, 0),
-    #     65: (8.78e-03, 0),
-    #     66: (8.78e-03, 0),
-    #     70: (8.78e-03, 0),
-    #     75: (1.60e-02, 0),
-    #     80: (1.60e-02, 0),
-    #     85: (1.79e-02, 0),
-    #     90: (1.79e-02, 0),
-    #     95: (1.79e-02, 0),
-    #     100: (1.79e-02, 0)
-    #     # Add more groups as needed
-    # }
-
     degradation_parameters = {
         # Battery capacity group: (slope, intercept)
         60: (2.15e-02, 0),

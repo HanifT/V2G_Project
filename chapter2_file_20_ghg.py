@@ -90,6 +90,7 @@ def process_actual_charging(file_path, ghg_dict):
 
 
 # %%  File paths for data
+
 batt_file = "/Users/haniftayarani/V2G_Project/Travel_data/Battery_Price_Per_kWh_Estimations.csv"
 bev_file = "/Users/haniftayarani/V2G_Project/data.csv"
 ev_cost_file = '/Users/haniftayarani/V2G_Project/Results/Actual/Actual_EV_rate_cost.xlsx'
@@ -109,10 +110,10 @@ batt_price = pd.read_csv(batt_file)
 actual_cost = process_actual_cost(ev_cost_file, tou_cost_file)
 
 # Load and clean the N and P datasets
-loaded_N_data_battery = load_and_clean_data('all_hourly_charging_N_data_battery.pkl', GHG_dict)
-loaded_P_data_battery = load_and_clean_data('all_hourly_charging_P_data_battery.pkl', GHG_dict)
+all_hourly_charging_N_data = load_and_clean_data('all_hourly_charging_N_data_battery.pkl', GHG_dict)
+all_hourly_charging_P_data = load_and_clean_data('all_hourly_charging_P_data_battery.pkl', GHG_dict)
 
-ghg_data = pd.concat([loaded_N_data_battery, loaded_P_data_battery], axis=0)
+ghg_data = pd.concat([all_hourly_charging_N_data, all_hourly_charging_P_data], axis=0)
 ghg_data = ghg_data[ghg_data["Charging Speed"] != 19]
 ghg_data_group = (ghg_data.groupby(["Charging Type", "Charging Speed", "GHG Cost", "Tariff",  "Charging_Behavior"])["GHG_Produced"].sum()).reset_index(drop=False) # Convert the MWh to KWh
 ghg_data_group = ghg_data_group[~ghg_data_group["Tariff"].str.contains("Home&Work")]
@@ -120,4 +121,3 @@ ghg_data_group = ghg_data_group[~ghg_data_group["Tariff"].str.contains("Home&Wor
 Actual_ghg = process_actual_charging(demand_curve, GHG_dict)
 ghg_data_group["Actual_GHG_Produced"] = Actual_ghg
 ghg_data_group["GHG_improvement"] = ((ghg_data_group["Actual_GHG_Produced"] - ghg_data_group["GHG_Produced"])/ghg_data_group["Actual_GHG_Produced"]) * 100
-

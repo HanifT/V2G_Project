@@ -14,7 +14,6 @@ GHG_dict = dict(enumerate(GHG_data.iloc[:, 0]))
 
 
 def normal_load(list):
-
     trip_data = pd.read_csv("data.csv")
     final_dataframes_charging = charging_dataframe(trip_data, 0)
     charging_data = final_dataframes_charging

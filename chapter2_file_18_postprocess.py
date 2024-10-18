@@ -6,11 +6,9 @@ import os
 import logging
 from parking import (xlsx_read, json_file_read, plot_price_chart_EVRATE, plot_price_chart_TOU, plot_cost_comparison_EV, plot_cost_comparison_TOU, 
                      plot_cost_comparison_RT, stacked_violin_plot, add_tariff_name, plot_ghg_distribution_seasons, violin_input, filter_rows_by_word, add_tariff_name2,add_tariff_name3,
-                     process_charging_data, plotting_demand_heatmap, demand_response, dr_plot, process_charging_data1)
-import matplotlib.pyplot as plt
-import seaborn as sns
-import numpy as np
-from scipy.interpolate import griddata
+                     process_charging_data, plotting_demand_heatmap,plot_benefit_by_scenario, calculate_ghg_difference,plot_styled_box_by_scenarioP, calculate_cost_difference,
+                     plot_styled_box_by_scenario, plot_cdf_by_group, plot_benefit_vs_degradation, calculate_charge_difference, plot_box_by_tariff, draw_box_plot)
+
 warnings.filterwarnings("ignore", category=pd.errors.PerformanceWarning)
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 # %%
@@ -469,6 +467,7 @@ result_N_191g_RT_rate_H, hourly_data_N_191g_RT_rate_H = json_file_read(directory
 # result_N_191g_RT_rate_HW, hourly_data_N_191g_RT_rate_HW = json_file_read(directory_N_191g_RT_rate_HW, flatten_veh_data)
 result_N_191g_TOU_rate_H, hourly_data_N_191g_TOU_rate_H = json_file_read(directory_N_191g_TOU_rate_H, flatten_veh_data)
 # result_N_191g_TOU_rate_HW, hourly_data_N_191g_TOU_rate_HW = json_file_read(directory_N_191g_TOU_rate_HW, flatten_veh_data)
+# %%
 result_P_ng_EV_rate_H, hourly_data_P_ng_EV_rate_H = json_file_read(directory_P_ng_EV_rate_H, flatten_veh_data_parking)
 # result_P_ng_EV_rate_HW, hourly_data_P_ng_EV_rate_HW = json_file_read(directory_P_ng_EV_rate_HW, flatten_veh_data_parking)
 result_P_ng_RT_rate_H, hourly_data_P_ng_RT_rate_H = json_file_read(directory_P_ng_RT_rate_H, flatten_veh_data_parking)
@@ -517,7 +516,7 @@ all_hourly_charging_N_data = pd.concat([
     add_tariff_name2(hourly_data_N_191g_TOU_rate_H, 'TOU Rate - Home', "Actual"),
     # add_tariff_name2(hourly_data_N_191g_TOU_rate_HW, 'TOU Rate - Home&Work', "Actual")
     ],ignore_index=True)
-
+# %%
 all_hourly_charging_P_data = pd.concat([
     add_tariff_name3(hourly_data_P_ng_EV_rate_H, 'EV Rate - Home', "Potential"),
     # add_tariff_name3(hourly_data_P_ng_EV_rate_HW, 'EV Rate - Home&Work', "Potential"),
@@ -579,18 +578,18 @@ RT_rates_total["Charging Speed"] = RT_rates_total["Charging Speed"].astype(float
 
 # Concatenate all dataframes
 All_rates_total = pd.concat([
-    add_tariff_name(costs_N_50g_EV_rate_H, 'EV Rate'),  # add_tariff_name(costs_N_50g_EV_rate_HW, 'EV Rate'),
-    add_tariff_name(costs_N_50g_RT_rate_H, 'RT Rate'),   # add_tariff_name(costs_N_50g_RT_rate_HW, 'RT Rate'),
-    add_tariff_name(costs_N_50g_TOU_rate_H, 'TOU Rate'),  # add_tariff_name(costs_N_50g_TOU_rate_HW, 'TOU Rate'),
-    add_tariff_name(costs_P_50g_EV_rate_H, 'EV Rate'),  # add_tariff_name(costs_P_50g_EV_rate_HW, 'EV Rate'),
-    add_tariff_name(costs_P_50g_RT_rate_H, 'RT Rate'),   # add_tariff_name(costs_P_50g_RT_rate_HW, 'RT Rate'),
-    add_tariff_name(costs_P_50g_TOU_rate_H, 'TOU Rate'),  # add_tariff_name(costs_P_50g_TOU_rate_HW, 'TOU Rate'),
-    add_tariff_name(costs_N_191g_EV_rate_H, 'EV Rate'),  # add_tariff_name(costs_N_191g_EV_rate_HW, 'EV Rate'),
-    add_tariff_name(costs_N_191g_RT_rate_H, 'RT Rate'),  # add_tariff_name(costs_N_191g_RT_rate_HW, 'RT Rate'),
-    add_tariff_name(costs_N_191g_TOU_rate_H, 'TOU Rate'),  # add_tariff_name(costs_N_191g_TOU_rate_HW, 'TOU Rate'),
-    add_tariff_name(costs_P_191g_EV_rate_H, 'EV Rate'),  # add_tariff_name(costs_P_191g_EV_rate_HW, 'EV Rate'),
-    add_tariff_name(costs_P_191g_RT_rate_H, 'RT Rate'),  # add_tariff_name(costs_P_191g_RT_rate_HW, 'RT Rate'),
-    add_tariff_name(costs_P_191g_TOU_rate_H, 'TOU Rate'),  # add_tariff_name(costs_P_191g_TOU_rate_HW, 'TOU Rate'),
+    add_tariff_name(costs_N_50g_EV_rate_H, 'EV Rate'),
+    add_tariff_name(costs_N_50g_RT_rate_H, 'RT Rate'),
+    add_tariff_name(costs_N_50g_TOU_rate_H, 'TOU Rate'),
+    add_tariff_name(costs_P_50g_EV_rate_H, 'EV Rate'),
+    add_tariff_name(costs_P_50g_RT_rate_H, 'RT Rate'),
+    add_tariff_name(costs_P_50g_TOU_rate_H, 'TOU Rate'),
+    add_tariff_name(costs_N_191g_EV_rate_H, 'EV Rate'),
+    add_tariff_name(costs_N_191g_RT_rate_H, 'RT Rate'),
+    add_tariff_name(costs_N_191g_TOU_rate_H, 'TOU Rate'),
+    add_tariff_name(costs_P_191g_EV_rate_H, 'EV Rate'),
+    add_tariff_name(costs_P_191g_RT_rate_H, 'RT Rate'),
+    add_tariff_name(costs_P_191g_TOU_rate_H, 'TOU Rate'),
     add_tariff_name(costs_A_TOU_rate, 'TOU Rate'),    add_tariff_name(costs_A_EV_rate, 'EV Rate'),
     add_tariff_name(costs_A_TOU_rate_191, 'TOU Rate'),    add_tariff_name(costs_A_EV_rate_191, 'EV Rate')], ignore_index=True)
 
@@ -618,141 +617,90 @@ plot_cost_comparison_TOU(TOU_rates_total, num_vehicles=50, title_size=14, axis_t
 plot_cost_comparison_RT(RT_rates_total, num_vehicles=50, title_size=14, axis_text_size=12, y_axis_title='Cost / Revenue ($)', barhight=-7500)
 
 # %%
-
 voilin_input_data = violin_input(All_rates_total)
 voilin_input_data_smart = filter_rows_by_word(voilin_input_data, 'Scenario', ['Actual', 'Smart'])
 voilin_input_data_V2G = filter_rows_by_word(voilin_input_data, 'Scenario', ['Actual', 'V2G'])
-# %%
-# Example usage with df_long
 stacked_violin_plot(voilin_input_data_smart)
 stacked_violin_plot(voilin_input_data_V2G)
 # %%
-
-# Process both datasets
-all_hourly_charging_N_data_grouped = process_charging_data(all_hourly_charging_N_data)
-all_hourly_charging_P_data_grouped = process_charging_data(all_hourly_charging_P_data)
-# %%
-
-plotting_demand_heatmap(all_hourly_charging_N_data_grouped, all_hourly_charging_P_data_grouped, charging_type="smart", color_palette="inferno")
-plotting_demand_heatmap(all_hourly_charging_N_data_grouped, all_hourly_charging_P_data_grouped, charging_type="v2g", color_palette="inferno")
-
-# %%
 plot_ghg_distribution_seasons(GHG_dict, Power_dict)
-# %%
 
-# test_dataframe = all_hourly_charging_N_data[(all_hourly_charging_N_data["Vehicle"] == "P_1087") & (all_hourly_charging_N_data["Tariff"] == "EV Rate - Home") & (all_hourly_charging_N_data["Charging Speed"] == 6.6) &
-#                                             (all_hourly_charging_N_data["Charging Type"] == 'v2g') & (all_hourly_charging_N_data["GHG Cost"] == 0)].reset_index(drop=True)
-
-test = process_charging_data1(all_hourly_charging_N_data)
-
-# Concatenate DataFrames
-result = pd.concat([test, costs_A_RT_rate_hourly], ignore_index=True)
-
-def plot_filtered_data(df, ghg_value, chtype):
-    # Fill NaN values in all columns (if any) to consider them in one group
-    df.fillna('Actual', inplace=True)
-
-    # Filter data based on GHG value
-    filtered_df = df[((df['GHG Cost'] == ghg_value) & (df['Charging Type'] == chtype)) | (df['Charging Type'] == 'Actual')]
-    filtered_df = filtered_df[(filtered_df['Tariff'].str.contains('Home') & ~filtered_df['Tariff'].str.contains('Home&Work')) | ((filtered_df['Charging Type'] == 'Actual'))]
-    # Group the data based on the columns except 'daily_hour' and 'X_CHR'
-    grouped = filtered_df.groupby(['Charging Type', 'Charging Speed', 'GHG Cost', 'Tariff', 'Charging_Behavior'])
-
-    # Plot the data
-    plt.figure(figsize=(12, 6))
-
-    for name, group in grouped:
-        plt.plot(group['daily_hour'], group['X_CHR'], label=str(name))
-
-    plt.xlabel('Hour', fontsize=14)
-    plt.ylabel('Power kW', fontsize=14)
-    plt.title(f'Charging Demand Curve (GHG Cost: {ghg_value})')
-    plt.legend(title='Groups', bbox_to_anchor=(1.05, 1), loc='upper left')
-    plt.grid(True)
-    plt.tight_layout()
-    plt.grid(True)
-    plt.show()
-
-
-# Example usage
-plot_filtered_data(result, 0.05000, "smart")
 # %% Bttery health
 
-all_hourly_charging_N_data_battery = all_hourly_charging_N_data[["Vehicle", "Electricity_Cost", "Degradation_Cost", "GHG_Cost", "X_CHR", "Charging Type", "Charging Speed", "GHG Cost", 'Tariff', 'Charging_Behavior']]
-all_hourly_charging_N_data_battery.to_pickle('all_hourly_charging_N_data_battery.pkl')
-
-all_hourly_charging_P_data_battery = all_hourly_charging_P_data[["Vehicle", "Electricity_Cost", "Degradation_Cost","GHG_Cost", "X_CHR", "Charging Type", "Charging Speed", "GHG Cost", 'Tariff', 'Charging_Behavior']]
-all_hourly_charging_P_data_battery.to_pickle('all_hourly_charging_P_data_battery.pkl')
+# all_hourly_charging_N_data_battery = all_hourly_charging_N_data[["Vehicle", "Electricity_Cost", "Degradation_Cost", "GHG_Cost", "X_CHR", "Charging Type", "Charging Speed", "GHG Cost", 'Tariff', 'Charging_Behavior']]
+# all_hourly_charging_N_data_battery.to_pickle('all_hourly_charging_N_data_battery.pkl')
+#
+# all_hourly_charging_P_data_battery = all_hourly_charging_P_data[["Vehicle", "Electricity_Cost", "Degradation_Cost","GHG_Cost", "X_CHR", "Charging Type", "Charging Speed", "GHG Cost", 'Tariff', 'Charging_Behavior']]
+# all_hourly_charging_P_data_battery.to_pickle('all_hourly_charging_P_data_battery.pkl')
 
 # %%
-
-CDF_N = all_hourly_charging_N_data[(all_hourly_charging_N_data["X_CHR"] != 0) & (all_hourly_charging_N_data["X_CHR"] <= 12) & (all_hourly_charging_N_data["X_CHR"] >= -12) & (all_hourly_charging_N_data["Charging Speed"] != 19)
-                                   & (all_hourly_charging_N_data["GHG Cost"] == 0.191) & (all_hourly_charging_N_data["Tariff"] != "TOU Rate - Home")]
-CDF_P = all_hourly_charging_P_data[(all_hourly_charging_P_data["X_CHR"] != 0) & (all_hourly_charging_P_data["X_CHR"] <= 12) & (all_hourly_charging_P_data["X_CHR"] >= -12) & (all_hourly_charging_P_data["Charging Speed"] != 19)
-                                   & (all_hourly_charging_P_data["GHG Cost"] != 0.191) & (all_hourly_charging_P_data["Tariff"] != "TOU Rate - Home")]
+CDF_N = all_hourly_charging_N_data[(all_hourly_charging_N_data["X_CHR"] != 0) &
+                                   (all_hourly_charging_N_data["GHG Cost"] == 0.191) &
+                                   (all_hourly_charging_N_data["Tariff"] != "TOU Rate - Home")]
 
 CDF_N["Electricity_Paid"] = CDF_N["Electricity_Cost"] / abs(CDF_N["X_CHR"])
-CDF_P["Electricity_Paid"] = CDF_P["Electricity_Cost"] / abs(CDF_P["X_CHR"])
-
 CDF_N = pd.merge(CDF_N, df_GHG, on="Hour", how="left")
+CDF_N['GHG_value'] = CDF_N.apply(lambda row: row['GHG_value'] * -1 if row['X_CHR'] < 0 else row['GHG_value'], axis=1)
+# %%
+CDF_P = all_hourly_charging_P_data[(all_hourly_charging_P_data["X_CHR"] != 0) &
+                                   (all_hourly_charging_P_data["GHG Cost"] != 0.191) &
+                                   (all_hourly_charging_P_data["Tariff"] != "TOU Rate - Home")]
+CDF_P["Electricity_Paid"] = CDF_P["Electricity_Cost"] / abs(CDF_P["X_CHR"])
 CDF_P = pd.merge(CDF_P, df_GHG, on="Hour", how="left")
-
-CDF_N['GHG_value'] = CDF_N.apply(lambda row: row['GHG_value'] * -1 if row['X_CHR'] < -1 else row['GHG_value'], axis=1)
-CDF_P['GHG_value'] = CDF_P.apply(lambda row: row['GHG_value'] * -1 if row['X_CHR'] < -1 else row['GHG_value'], axis=1)
-
+CDF_P['GHG_value'] = CDF_P.apply(lambda row: row['GHG_value'] * -1 if row['X_CHR'] < 0 else row['GHG_value'], axis=1)
+# %%
 costs_A_TOU_rate_hourly_in["Electricity_Paid"] = costs_A_TOU_rate_hourly_in["Electricity_Cost"] / abs(costs_A_TOU_rate_hourly_in["X_CHR"])
 costs_A_TOU_rate_hourly_in = pd.merge(costs_A_TOU_rate_hourly_in, df_GHG, on="Hour", how="left")
 # %%
 
+charged_N = calculate_charge_difference(CDF_N)
+charged_P = calculate_charge_difference(CDF_P)
 
-def plot_cdf_by_group(df, df2, column_to_plot, xlabel, figsize=(10, 6)):
-    def plot_cdf(data, label, **kwargs):
-        """Helper function to plot the CDF of a data series."""
-        sorted_data = np.sort(data)
-        cdf = np.arange(1, len(sorted_data) + 1) / len(sorted_data)
-        plt.plot(sorted_data, cdf, label=label, linewidth=2, **kwargs)
-    group_by_columns = ['Charging Type', 'Charging Speed', 'Tariff']
-    # Group the DataFrame by specified columns
-    grouped = df.groupby(group_by_columns)
-    plt.figure(figsize=figsize)
-    # Loop through each group and plot the CDF for the specified column
-    for name, group in grouped:
-        # Assuming 'name' is a tuple with the same order as 'group_by_columns'
-        if len(name) == 3:  # Ensure there are exactly three components to unpack
-            charging_type, charging_speed, tariff = name
-
-            # Properly capitalize 'smart' to 'Smart' and 'v2g' to 'V2G'
-            if charging_type.lower() == 'smart':
-                charging_type = 'Smart'
-            elif charging_type.lower() == 'v2g':
-                charging_type = 'V2G'
-            # Remove ' - Home' from the tariff name
-            tariff = tariff.replace(' - Home', '')
-            # Create the label
-            label = f'{charging_type}, {charging_speed} kW, {tariff}'
-        else:
-            label = ', '.join([str(val) for val in name])  # Fallback if the structure is unexpected
-        # Plot the CDF for this group
-        plot_cdf(group[column_to_plot], label)
-        # Plot the baseline DataFrame (df2)
-    if df2 is not None and column_to_plot in df2.columns:
-        plot_cdf(df2[column_to_plot], label='Baseline', linestyle='--', color='black')  # Different style for the baseline
-
-    # Set the x and y labels with font size
-    plt.xlabel(xlabel, fontsize=18)
-    plt.ylabel("CDF", fontsize=18)
-    # Adjust x-ticks and y-ticks font size
-    plt.xticks(fontsize=18)
-    plt.yticks(fontsize=18)
-    # Add legend with increased font size
-    plt.legend(loc='best', fontsize=14)  # Increase the font size of the legend
-    plt.grid(True)
-    # Display the plot
-    plt.show()
+charged = pd.concat([charged_N, charged_P], axis=0)
 
 
-plot_cdf_by_group(CDF_N, costs_A_TOU_rate_hourly_in, "Electricity_Paid", 'Electricity Cost ($/kWh)', figsize=(10, 6))
-plot_cdf_by_group(CDF_N, costs_A_TOU_rate_hourly_in, "GHG_value", 'Carbon Intensity (g/kWh)', figsize=(10, 6))
+draw_box_plot(charged, text_size=14)
+# %%
+# Run the function using your data with charging speed consideration
+# plot_styled_box_by_scenario(CDF_N,costs_A_TOU_rate_hourly_in, xaxis="Hourly Cost of Electric Vehicle Charging/Discharging ($)", x_column='Electricity_Cost', y_column='Scenarios',
+#                      charge_type_column='Charging Type', tariff_column='Tariff', behavior_column='X_CHR', speed_column='Charging Speed', xlimit=30)
+#
+# plot_styled_box_by_scenario(CDF_N,costs_A_TOU_rate_hourly_in,  xaxis="Hourly Emission of Electric Vehicle Charging/Discharging (g CO2)",x_column='GHG_value', y_column='Scenarios',
+#                      charge_type_column='Charging Type', tariff_column='Tariff', behavior_column='X_CHR', speed_column='Charging Speed', xlimit=7000)
 
-plot_cdf_by_group(CDF_P, costs_A_TOU_rate_hourly_in, "Electricity_Paid", 'Electricity Cost ($/kWh)', figsize=(10, 6))
-plot_cdf_by_group(CDF_P, costs_A_TOU_rate_hourly_in, "GHG_value", 'Carbon Intensity (g/kWh)', figsize=(10, 6))
+CDF_N_grouped_g = calculate_ghg_difference(CDF_N, costs_A_TOU_rate_hourly_in)
+CDF_N_grouped_c = calculate_cost_difference(CDF_N, costs_A_TOU_rate_hourly_in)
+# %%
+# Run the function using your data with charging speed consideration
+# plot_styled_box_by_scenarioP(CDF_P,costs_A_TOU_rate_hourly_in, xaxis="Hourly Cost of Electric Vehicle Charging/Discharging ($)" , x_column='Electricity_Cost', y_column='Scenarios',
+#                      charge_type_column='Charging Type', tariff_column='Tariff', behavior_column='X_CHR', speed_column='Charging Speed', xlimit=30)
+#
+# plot_styled_box_by_scenarioP(CDF_P,costs_A_TOU_rate_hourly_in,  xaxis="Hourly Emission of Electric Vehicle Charging/Discharging (g CO2)" ,x_column='GHG_value', y_column='Scenarios',
+#                      charge_type_column='Charging Type', tariff_column='Tariff', behavior_column='X_CHR', speed_column='Charging Speed', xlimit=7000)
+
+CDF_P_grouped_g = calculate_ghg_difference(CDF_P, costs_A_TOU_rate_hourly_in)
+CDF_P_grouped_c = calculate_cost_difference(CDF_P, costs_A_TOU_rate_hourly_in)
+#%%
+# plot_cdf_by_group(CDF_N, costs_A_TOU_rate_hourly_in, "Electricity_Cost", "Hourly Cost of Electric Vehicle Charging/Discharging ($)", figsize=(10, 6))
+# plot_cdf_by_group(CDF_N, costs_A_TOU_rate_hourly_in, "GHG_value", 'Carbon Intensity (g/kWh)', figsize=(10, 6))
+
+#%%
+# plot_cdf_by_group(CDF_P, costs_A_TOU_rate_hourly_in, "Electricity_Paid", 'Electricity Cost ($/kWh)', figsize=(10, 6))
+# plot_cdf_by_group(CDF_P, costs_A_TOU_rate_hourly_in, "GHG_value", 'Carbon Intensity (g/kWh)', figsize=(10, 6))
+
+# %%
+
+plot_benefit_vs_degradation(EV_rates_total, num_vehicles=50, baseline_cost_scenario='last',title="EV-Rate",  lb=1500, ub=5200, title_size=12, axis_text_size=12)
+plot_benefit_vs_degradation(TOU_rates_total, num_vehicles=50, baseline_cost_scenario='last',title="TOU-Rate", lb=900, ub=1800, title_size=12, axis_text_size=12)
+
+plot_benefit_vs_degradation(RT_rates_total, num_vehicles=50, baseline_cost_scenario='second_last',title="RTvsTOU",lb=3000, ub=11500, title_size=12, axis_text_size=12)
+plot_benefit_vs_degradation(RT_rates_total, num_vehicles=50, baseline_cost_scenario='last',title="RTvsEV", lb=3000, ub=11500, title_size=12, axis_text_size=12)
+
+# %%
+plot_benefit_by_scenario(voilin_input_data, scenario_filter='Actual', charging_speed=19, fz=18)
+plot_benefit_by_scenario(voilin_input_data, scenario_filter='Potential', charging_speed=19, fz=18)
+
+# %%
+
+plot_box_by_tariff(CDF_N_grouped_g, CDF_P_grouped_g, figtitle="Annual CO$_2$ Emissions Reduction per\nVehicle from V1G and V2G Participation (tonne)",  fz=16, show_dollar=False)
+plot_box_by_tariff(CDF_N_grouped_c, CDF_P_grouped_c, figtitle="Annual Financial Savings per Vehicle\nfrom V1G and V2G Participation ($)",  fz=16, show_dollar=True)

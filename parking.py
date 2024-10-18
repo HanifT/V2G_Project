@@ -1,19 +1,27 @@
 # %%
 import pytz
-import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 import re
 import math
 from datetime import timedelta
-import matplotlib.patches as mpatches
+import matplotlib as mpl
 import matplotlib.gridspec as gridspec
 import os
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+import matplotlib.ticker as ticker
+from matplotlib.patches import Patch
+from matplotlib.ticker import FuncFormatter
 ##################################################################################################################
 ##################################################################################################################
 # %%
-
+# Set Helvetica or Arial as the default font
+mpl.rcParams['font.sans-serif'] = "Helvetica"
+mpl.rcParams['font.family'] = "sans-serif"
+# If Helvetica is not available, fallback to Arial
+mpl.rcParams['font.sans-serif'] = ["Helvetica", "Arial"]
 
 def read_clean(value):
     home_dir = os.path.expanduser("~")
@@ -88,16 +96,8 @@ def read_clean(value):
 ##################################################################################################################
 
 
-def clean_data():
-    vehicle_names = ["P_1352", "P_1353", "P_1357", "P_1367", "P_1368", "P_1370", "P_1371", "P_1376",
-                     "P_1381", "P_1384", "P_1388", "P_1393", "P_1403", "P_1409", "P_1412", "P_1414",
-                     "P_1419", "P_1421", "P_1422", "P_1423", "P_1424", "P_1427", "P_1429", "P_1435",
-                     "P_1087", "P_1091", "P_1092", "P_1093", "P_1094", "P_1098", "P_1100", "P_1109",
-                     "P_1111", "P_1112", "P_1122", "P_1123", "P_1125", "P_1125a", "P_1127", "P_1131",
-                     "P_1132", "P_1135", "P_1137", "P_1140", "P_1141", "P_1143", "P_1144", "P_1217",
-                     "P_1253", "P_1257", "P_1260", "P_1267", "P_1271", "P_1272", "P_1279", "P_1280",
-                     "P_1281", "P_1285", "P_1288", "P_1294", "P_1295", "P_1296", "P_1304", "P_1307", "P_1375",
-                     "P_1088a", "P_1122", "P_1264", "P_1267", "P_1276", "P_1289", "P_1290", "P_1300", "P_1319"]
+def clean_data(input_data):
+    vehicle_names = input_data
     df = pd.DataFrame()
     for vehicle_name in vehicle_names:
         df_full_trips = read_clean(vehicle_name)  # done
@@ -107,6 +107,12 @@ def clean_data():
         df_soc_req["f_next_trip"] = df_soc_req["battery[soc][start][trip]"].shift(-1) - df_soc_req["SOC_next_trip"]
         # Failed Next Charging
         df_soc_req["f_next_charge"] = df_soc_req["battery[soc][start][trip]"].shift(-1) - df_soc_req["SOC_need_next_charge"]
+        # Update end_time_charging based on start_time_charging and duration_charging_min
+        df_soc_req["end_time_charging"] = pd.to_datetime(df_soc_req["start_time_charging"]) + pd.to_timedelta(df_soc_req["duration_charging_min"], unit='m')
+
+        # Ensure the date format remains as requested
+        df_soc_req["start_time_charging"] = pd.to_datetime(df_soc_req["start_time_charging"]).dt.strftime('%Y-%m-%d %H:%M:%S%z')
+        df_soc_req["end_time_charging"] = df_soc_req["end_time_charging"].dt.strftime('%Y-%m-%d %H:%M:%S%z')
         df = pd.concat([df, df_soc_req], axis=0, ignore_index=True)
     return df
 ##################################################################################################################
@@ -383,7 +389,104 @@ def draw_combined(df):
     # Save the plot as an image file (e.g., PNG)
     plt.savefig('combined_bubble_chart.png', bbox_inches='tight')
     plt.show()
-# draw_combined(final_dataframes)
+
+
+# %%
+
+
+def draw_multilevel_pie(df, text_size=13):
+    df1 = df.copy()
+    df1["duration_charging_min"] = df1["duration_charging_min"].fillna(0)
+
+    # Step 1: Prepare data for the inner circle (Destinations) with colors based on average parking time
+    destination_counts = df1['destination_label'].value_counts()
+    total_instances = destination_counts.sum()
+    inner_ratios = destination_counts / total_instances  # Proportion of each destination
+    destinations = destination_counts.index.tolist()
+
+    # Calculate average parking time per destination for color mapping
+    avg_parking_times = [df1[df1['destination_label'] == dest]['parking_time_minute'].mean() for dest in destinations]
+    norm_inner = plt.Normalize(min(avg_parking_times), max(avg_parking_times))
+    inner_palette = sns.color_palette("crest", as_cmap=True)
+    inner_colors = inner_palette(norm_inner(avg_parking_times))
+
+    # Step 2: Prepare data for the outer circle based on Plugged-in and Parking with colors based on charging duration
+    outer_ratios = []
+    outer_labels = []
+    avg_charging_times = []
+
+    for i, destination in enumerate(destinations):
+        df_dest = df1[df1['destination_label'] == destination]
+        total_count = len(df_dest)
+
+        # Calculate counts for Plugged-in and Parking
+        plugged_in_count = len(df_dest[df_dest['duration_charging_min'] > 0])
+        parking_count = total_count - plugged_in_count
+
+        # Calculate proportions for Plugged-in and Parking within the destination
+        inner_ratio = inner_ratios.iloc[i]
+        outer_ratios.extend([plugged_in_count / total_count * inner_ratio,
+                             parking_count / total_count * inner_ratio])
+
+        # Labels for outer segments
+        outer_labels.extend([f"{destination} - Parked - Plugged-in", f"{destination} - Parked - not Plugged-in"])
+
+        # Average charging duration time for Plugged-in; 0 for Parking
+        avg_charging_time = df_dest[df_dest['duration_charging_min'] > 0]['duration_charging_min'].mean()
+        avg_charging_times.extend([avg_charging_time if plugged_in_count > 0 else 0, 0])
+
+    # Normalize colors for outer circle based on charging duration
+    norm_outer = plt.Normalize(min(avg_charging_times), max(avg_charging_times))
+    outer_palette = sns.color_palette("flare", as_cmap=True)
+    outer_colors = outer_palette(norm_outer(avg_charging_times))
+
+    # Function to calculate luminance
+    def get_text_color(color):
+        r, g, b = color[:3]
+        luminance = 0.2126*r + 0.7152*g + 0.0722*b  # Calculate luminance
+        return 'black' if luminance > 0.5 else 'white'
+
+    # Step 3: Plot the pie chart with nested proportions
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    # Draw the inner circle (Destinations) with colors based on average parking time
+    wedges_inner, texts_inner, autotexts_inner = ax.pie(inner_ratios, radius=1.1, labels=None, colors=inner_colors,
+                                                        wedgeprops=dict(width=0.6, edgecolor='w'), autopct='%1.1f%%',
+                                                        pctdistance=0.6, textprops={'fontsize': text_size})
+    for i, wedge in enumerate(wedges_inner):
+        angle = (wedge.theta2 - wedge.theta1) / 2. + wedge.theta1
+        x = 0.3 * np.cos(np.radians(angle))
+        y = 0.3 * np.sin(np.radians(angle))
+        ax.text(x, y, destinations[i], ha='center', va='center', fontsize=text_size)
+
+    # Set percentage text to white for inner circle
+    for autotext, color in zip(autotexts_inner, inner_colors):
+        autotext.set_color(get_text_color(color))
+        autotext.set_fontsize(text_size+2)
+
+    # Draw the outer circle (Plugged-in and Parking) with colors based on charging duration
+    wedges_outer, texts_outer, autotexts_outer = ax.pie(outer_ratios, radius=1.5, labels=outer_labels, colors=outer_colors,
+                                                        wedgeprops=dict(width=0.6, edgecolor='w'), autopct='%1.1f%%',
+                                                        pctdistance=0.8, textprops={'fontsize': text_size+2})
+
+    # Set percentage text to white for outer circle
+    for autotext, color in zip(autotexts_outer, outer_colors):
+        autotext.set_color(get_text_color(color))
+        autotext.set_fontsize(text_size+2)
+
+    # Add color bars for both inner and outer circles
+    sm_inner = plt.cm.ScalarMappable(cmap=inner_palette, norm=norm_inner)
+    sm_outer = plt.cm.ScalarMappable(cmap=outer_palette, norm=norm_outer)
+
+    cbar_inner = plt.colorbar(sm_inner, ax=ax, fraction=0.05, pad=0.1, orientation='horizontal')
+    cbar_inner.set_label('Average Parking Time in Minute (Inner Circle)', fontsize=text_size)
+
+    cbar_outer = plt.colorbar(sm_outer, ax=ax, fraction=0.05, pad=0.15, orientation='horizontal')
+    cbar_outer.set_label('Average Charging Duration in Minute (Outer Circle)', fontsize=text_size)
+
+    ax.set(aspect="equal")
+    plt.savefig('multilevel_pie_chart.png', bbox_inches='tight', dpi=600)
+    plt.show()
 
 ##################################################################################################################
 ##################################################################################################################
@@ -432,7 +535,6 @@ def draw_parking_boxplots(df):
     plt.savefig('soc.png', bbox_inches='tight')
     plt.show()
 
-# draw_parking_boxplots(final_dataframes)
 ##################################################################################################################
 ##################################################################################################################
 
@@ -1856,16 +1958,6 @@ def total_v2g_cap_graph(df, df1):
     ax.grid(axis='y', alpha=0.5)
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), shadow=True, ncol=3)
     plt.tight_layout()
-    # plt.show()
-    #
-    # ax2 = ax.twinx()
-    # num_cols_df1 = len(df1.columns)  # Number of columns in df1
-    # for i, col1 in enumerate(df1.columns):
-    #     ax2.bar(index + (i + num_cols) * bar_width / num_cols_df1, df1[col1], bar_width / num_cols_df1, label=col1)  # Adjust bar position
-    #
-    # # Setting the primary y-axis (left) labels and title for the second plot
-    # ax2.set_ylabel('Annual V2G Capacity of the Fleet - MWh', fontsize=14)
-
     plt.tight_layout()
     plt.show()
 
@@ -3288,91 +3380,6 @@ def stacked_violin_plot(df):
     # Show plot
     plt.show()
 
-
-# Example usage
-# Assuming violin_input_data is your prepared DataFrame
-# violin_input_data = violin_input(All_rates_total)
-# stacked_violin_plot(violin_input_data)
-# Call the function
-# # stacked_violin_plot(voilin_input_data)
-# stacked_violin_plot(voilin_input_data_V2G)
-# stacked_violin_plot(voilin_input_data_smart)
-
-# %%
-#
-# def xlsx_read(dic):
-#
-#     # List of Excel file names
-#     excel_files = [f for f in os.listdir(dic) if f.endswith('.xlsx')]
-#
-#     # Dictionary to store dataframes
-#     all_dataframes = {}
-#
-#     # Iterate over each Excel file
-#     for excel_file_name in excel_files:
-#         excel_file_path = os.path.join(dic, excel_file_name)
-#         print(f"Reading Excel file '{excel_file_path}'...")
-#
-#         # Read each sheet into a separate dataframe
-#         with pd.ExcelFile(excel_file_path) as xls:
-#             sheet_names = xls.sheet_names  # Get the names of all sheets in the Excel file
-#
-#             # Read each sheet into a dataframe and store it in the dictionary
-#             for sheet_name in sheet_names:
-#                 df = pd.read_excel(xls, sheet_name=sheet_name)
-#                 new_df_name = f"{excel_file_name[:-5]}_{sheet_name}"  # Add sheet name to the file name
-#                 all_dataframes[new_df_name] = df
-#
-#     # Create a new dataframe to store total cost data
-#     total_costs_df = pd.DataFrame()
-#
-#     # Iterate over the dataframes and extract total costs
-#     for df_name, df in all_dataframes.items():
-#         if "Total Costs" in df_name:
-#             # Extract charging type and speed from the dataframe name
-#             charging_type = "smart" if "smart" in df_name else "v2g"
-#             charging_speed = df_name.split("_")[2][:-1]
-#             ghg_cost = df_name.split("_")[3][:-2]
-#
-#             # Add a column indicating the charging type (smart or v2g)
-#             df['Charging Type'] = charging_type
-#             # Add columns indicating charging speed and GHG cost
-#             df['Charging Speed'] = charging_speed
-#             df['GHG Cost'] = ghg_cost
-#
-#             # Concatenate this dataframe with the total_costs_df
-#             total_costs_df = pd.concat([total_costs_df, df])
-#
-#     print("Total cost data has been extracted.")
-#     total_costs_df = total_costs_df.reset_index(drop=True)
-#     # Display the new dataframe
-#     print(total_costs_df)
-#
-#     # Create a new dataframe to store total cost data
-#     individual_cost_df = pd.DataFrame()
-#
-#     # Iterate over the dataframes and extract total costs
-#     for df_name, df in all_dataframes.items():
-#         if "Individual Cost" in df_name:
-#             # Extract charging type and speed from the dataframe name
-#             charging_type = "smart" if "smart" in df_name else "v2g"
-#             charging_speed = df_name.split("_")[2][:-1]
-#             ghg_cost = df_name.split("_")[3][:-2]
-#
-#             # Add a column indicating the charging type (smart or v2g)
-#             df['Charging Type'] = charging_type
-#             # Add columns indicating charging speed and GHG cost
-#             df['Charging Speed'] = charging_speed
-#             df['GHG Cost'] = ghg_cost
-#
-#             # Concatenate this dataframe with the total_costs_df
-#             individual_cost_df = pd.concat([individual_cost_df, df])
-#
-#     individual_cost_df = individual_cost_df.reset_index(drop=True)
-#     # Display the new dataframe
-#     return total_costs_df
-
-
 # %%
 
 def plotting(df, num_vehicles):
@@ -3598,40 +3605,6 @@ def draw_profile(charging_cost, hourly_data):
 
 # %%
 
-#
-# def demand_response(df, include_locations):
-#     # Ensure exclude_locations is a list
-#     if not isinstance(include_locations, list):
-#         include_locations = [include_locations]
-#
-#     # Filter the DataFrame to exclude specified locations
-#     df = df[df["location"].isin(include_locations)].copy()
-#     df["%10increase"] = df["Total_power"] * 1.10 - df["Total_power"]
-#     df["%20increase"] = df["Total_power"] * 1.20 - df["Total_power"]
-#     df["%50increase"] = df["Total_power"] * 1.50 - df["Total_power"]
-#
-#     df["%10response"] = (df["Total_power"] - (df["Utilization Rate"]/100) * df["Total_power"]) > df["%10increase"]
-#     df["%20response"] = (df["Total_power"] - (df["Utilization Rate"]/100) * df["Total_power"]) > df["%20increase"]
-#     df["%50response"] = (df["Total_power"] - (df["Utilization Rate"]/100) * df["Total_power"]) > df["%50increase"]
-#
-#     # Group by 'hour' and calculate percentages
-#     grouped10 = df.groupby(['Hour_of_day', "Charging Speed"])['%10response'].value_counts(normalize=True).unstack().fillna(0) * 100
-#     grouped20 = df.groupby(['Hour_of_day', "Charging Speed"])['%20response'].value_counts(normalize=True).unstack().fillna(0) * 100
-#     grouped50 = df.groupby(['Hour_of_day', "Charging Speed"])['%50response'].value_counts(normalize=True).unstack().fillna(0) * 100
-#
-#     # Rename columns for clarity
-#     grouped10.columns = ['Percentage_False', 'Percentage_True']
-#     grouped20.columns = ['Percentage_False', 'Percentage_True']
-#     grouped50.columns = ['Percentage_False', 'Percentage_True']
-#
-#     # Reset index to make 'hour' a column again
-#     grouped10 = grouped10.reset_index()
-#     grouped20 = grouped20.reset_index()
-#     grouped50 = grouped50.reset_index()
-#
-#     return grouped10, grouped20, grouped50
-#
-
 def demand_response(df, include_locations):
     # Ensure include_locations is a list
     if not isinstance(include_locations, list):
@@ -3670,8 +3643,6 @@ def demand_response(df, include_locations):
 def violin_input(df):
     df["Charging Speed"] = df["Charging Speed"].astype(float)
     df["GHG Cost"] = df["GHG Cost"].astype(float)
-    # df.loc[df["GHG Cost"] == 0, "GHG Optimized"] = "False"
-    # df.loc[df["GHG Cost"] != 0, "GHG Optimized"] = "Ture"
     df['Total_Cost'] = df['Electricity_Cost'] + df['Degradation_Cost'] + df['GHG_Cost']
     df.loc[df['Charging Type'] == "smart", "Charging Type"] = "Smart"
     df.loc[df['Charging Type'] == "v2g", "Charging Type"] = "V2G"
@@ -3681,10 +3652,10 @@ def violin_input(df):
     # Calculate Total Cost
     df['Social Cost of Carbon'] = df['GHG Cost']
     df.loc[df['Social Cost of Carbon'] == 0, "Social Cost of Carbon"] = 0.05
-    df_long = df[["Scenario", "Charging Speed", "Total_Cost", "Social Cost of Carbon", "Tariff"]].sort_values(by='Scenario')
+    df_long = df[["Vehicle", "Scenario", "Charging Speed", "Total_Cost", "Social Cost of Carbon", "Tariff"]].sort_values(by='Scenario')
     # Create a new column for the combined hue
     df_long['Tariff_Social_Cost'] = df_long['Tariff'] + '-' + df_long['Social Cost of Carbon'].astype(str)
-    df_long = df_long.sort_values(["Scenario", "Charging Speed", "Social Cost of Carbon", "Tariff"])
+    df_long = df_long.sort_values(["Vehicle","Scenario", "Charging Speed", "Social Cost of Carbon", "Tariff"])
     df_long["Charging Speed"].fillna(0, inplace=True)
     return df_long
 
@@ -3938,7 +3909,7 @@ def process_hourly_charging_data(data_N, data_P):
     data = pd.concat([data_N, data_P])
     # Filter rows based on conditions
     data = data[data["GHG Cost"] > 0]
-    data = data[data["Charging Speed"] != 19]
+    data = data[~((data["Charging Speed"] == 19) & (data["Charging Type"] == "v2g"))]
     data = data[~data["Tariff"].str.contains("Home&Work")]
     # Calculate battery remaining capacity
     data["bt_cap_rem"] = -1.42e-6 * data["X_CHR"] + 0.989999999
@@ -4003,8 +3974,7 @@ def calculate_future_battery_price(cycle_number, current_year, bat_cap, cycles, 
     year_of_replacement = current_year + cycle_number * cycles  # Assuming 'years_to_80_percent' is constant
     return calculate_battery_price_per_kwh(year_of_replacement, bat_cap, df_price_estimations)
 
-
-def update_savings_columns(df, df_price_estimations, current_year, v2g_cost, v1g_cost):
+def update_savings_columns(df, df_price_estimations, current_year, v2g_cost, v1g_cost, v1g_cost_19kw):
     def calculate_total_saving(row):
         if row['Charging Type'] == 'v2g':
             # Calculate the cumulative savings for V2G
@@ -4014,11 +3984,16 @@ def update_savings_columns(df, df_price_estimations, current_year, v2g_cost, v1g
                 cycle_saving = (row['TOU Cost'] - row['Total_cost']) * row['years_to_80_percent']
                 cycle_saving -= calculate_future_battery_price(cycle, current_year, row['bat_cap'], cycles, df_price_estimations)
                 total_saving += cycle_saving
-            total_saving -= v2g_cost * cycles
+            total_saving -= v2g_cost
             return total_saving
         else:
+            # Adjust v1g_cost for smart charging with 19 kW chargers
+            if row['Charging Speed'] == 19:
+                adjusted_v1g_cost = v1g_cost_19kw
+            else:
+                adjusted_v1g_cost = v1g_cost
             # Calculate the savings for Smart Charging
-            return (row['TOU Cost'] - row['Total_cost']) * row['years_to_80_percent'] - v1g_cost
+            return (row['TOU Cost'] - row['Total_cost']) * row['years_to_80_percent'] - adjusted_v1g_cost
 
     df['Saving_TOU'] = df.apply(lambda row: calculate_total_saving(row), axis=1)
 
@@ -4029,119 +4004,1068 @@ def update_savings_columns(df, df_price_estimations, current_year, v2g_cost, v1g
             total_saving = 0
             for cycle in range(cycles):
                 cycle_saving = (row['EV Cost'] - row['Total_cost']) * row['years_to_80_percent']
-                cycle_saving -= calculate_future_battery_price(cycle, current_year, row['bat_cap'],cycles, df_price_estimations)
+                cycle_saving -= calculate_future_battery_price(cycle, current_year, row['bat_cap'], cycles, df_price_estimations)
                 total_saving += cycle_saving
             total_saving -= v2g_cost * cycles
             return total_saving
         else:
+            # Adjust v1g_cost for smart charging with 19 kW chargers
+            if row['Charging Speed'] == 19:
+                adjusted_v1g_cost = v1g_cost_19kw
+            else:
+                adjusted_v1g_cost = v1g_cost
             # Calculate the savings for Smart Charging
-            return (row['EV Cost'] - row['Total_cost']) * row['years_to_80_percent'] - v1g_cost
+            return (row['EV Cost'] - row['Total_cost']) * row['years_to_80_percent'] - adjusted_v1g_cost
 
     df['Saving_EV'] = df.apply(lambda row: calculate_total_saving_ev(row), axis=1)
 
     return df
 
+def plot_saving_ev_vs_distance(df, add_actual_lines=False, add_potential_lines=False, ylim=None, text_size=18):
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
 
-def plot_saving_ev_vs_distance(df, add_actual_lines=False, add_potential_lines=False, ylim=None):
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(8, 6))
 
     # Map charging type to markers
     marker_map = {'v2g': 'o', 'smart': 's'}  # Replace with actual values in your data
+    label_map = {'v2g': 'V2G', 'smart': 'V1G'}  # Map to desired labels
 
-    # Define two colors for the charging speeds
-    color_map = {0: 'blue', 1: 'green'}  # You can choose any two colors
-    label_map = {'v2g': 'V2G', 'smart': 'Smart'}  # Map to desired labels
+    # Define colors for each charging speed
+    color_map = {6.6: 'blue', 12: 'green', 19: 'red'}  # Assign colors for each charging speed
 
-    # Assign colors based on charging speed
-    speed_threshold = 6.6  # Define the threshold to split into two groups
-    df['Color'] = df['Charging Speed'].apply(lambda x: color_map[0] if x <= speed_threshold else color_map[1])
+    # Assign colors based on exact charging speeds
+    df['Color'] = df['Charging Speed'].map(color_map)
 
     # Define discrete sizes based on battery capacity
     size_map = {66: 150, 70: 200, 75: 250, 80: 300, 85: 350, 100: 400}  # Adjust sizes as necessary
 
     # Map battery capacities to marker sizes
     df['Size'] = df['bat_cap'].map(size_map)
-    # Plot data for each charging type
+
+    # Plot data for each charging type without labels (we'll create custom legends)
     for charging_type, marker in marker_map.items():
         subset = df[df['Charging Type'] == charging_type]
         plt.scatter(
             x=subset['distance'],
-            y=subset['Saving_EV']/subset['average_smart_years'],
+            y=subset['Saving_TOU'] / subset['average_smart_years'],
             c=subset['Color'],
-            s=subset['Size'],  # Adjust size as needed
+            s=subset['Size'],
             marker=marker,
             alpha=0.7,
-            label=label_map[charging_type]
+            # Remove the label to prevent automatic legend entries
+            # label=label_map[charging_type]
         )
+
     # Set y-axis limits if provided
     if ylim is not None:
         plt.ylim(0, ylim)
-        # Adding vertical lines if the option is active
-    if add_actual_lines:
-        # plt.axvline(x=5000, color='red', linestyle='--', linewidth=2)
-        plt.axvline(x=15000, color='red', linestyle='--', linewidth=2)
-        # plt.axhline(y=0, color='red', linestyle='--', linewidth=2)
-        # Adding pink shaded area between the red lines and above the horizontal line at y=0
 
-        plt.fill_betweenx(y=[0, 1000], x1=0, x2=15000, color='green', alpha=0.3)
-        plt.fill_betweenx(y=[250, 1750], x1=15000, x2=30000, color='pink', alpha=0.3)
-        # Adding text above the shaded area
-        # Adding text with an arrow above the shaded area
+    # Adding vertical lines if the option is active
+    if add_actual_lines:
+        plt.axvline(x=15000, color='red', linestyle='--', linewidth=2)
+        # plt.fill_betweenx(y=[0, 1000], x1=0, x2=15000, color='green', alpha=0.3)
+        plt.fill_betweenx(y=[500, 2500], x1=15000, x2=30000, color='pink', alpha=0.3)
         plt.annotate(
             'Optimal Range for \nSmart Charging',
-            xy=(22500, 2000),  # Point to the beginning of the arrow
-            xytext=(22500, 2800),  # Text location
+            xy=(22500, 2500),
+            xytext=(22500, 3200),
             fontsize=16,
             color='red',
             ha='center',
             arrowprops=dict(facecolor='red', shrink=0.05, width=2, headwidth=10, headlength=20, lw=1.5)
         )
+
     if add_potential_lines:
+
         plt.fill_betweenx(y=[750, 2800], x1=15000, x2=30000, color='pink', alpha=0.3)
         plt.fill_betweenx(y=[500, 2750], x1=0, x2=15000, color='green', alpha=0.3)
-        # plt.axvline(x=15000, color='red', linestyle='--', linewidth=2)
-    # Calculate and add a mean line for Saving_EV
-    # mean_saving_ev = df['Saving_TOU'].mean()/subset['average_smart_years']
-    # plt.axhline(y=mean_saving_ev, color='black', linestyle='-', linewidth=2, label=f'Mean Saving = {mean_saving_ev:.2f}')
 
     # Adding labels and title
-    plt.xlabel('Distance (mile)', fontsize=15)
-    plt.ylabel('Savings Compared to the Base Scenario ($/year)', fontsize=15)
-    plt.xticks(fontsize=15)
-    plt.yticks(fontsize=15)
-    # Format x-ticks with commas for thousands
+    plt.xlabel('Distance (mile)', fontsize=text_size)
+    plt.ylabel('Savings Compared to the Base Scenario ($/year)', fontsize=text_size)
+    plt.xticks(fontsize=text_size-2)
+    plt.yticks(fontsize=text_size)
+
+    # Format x-ticks and y-ticks with commas for thousands
     plt.xticks(ticks=plt.xticks()[0], labels=[f'{int(x):,}' for x in plt.xticks()[0]])
     plt.yticks(ticks=plt.yticks()[0], labels=[f'{int(x):,}' for x in plt.yticks()[0]])
+
     plt.xlim(0, 30000)
-    # Manually create legend entries for colors (charging speeds)
-    speed_legend_elements = [
-        Line2D([0], [0], marker='o', color='w', label='6.6 kW', markerfacecolor=color_map[0], markersize=15),
-        Line2D([0], [0], marker='o', color='w', label='12 kW', markerfacecolor=color_map[1], markersize=15)
+    plt.grid()
+
+    # Manually create legend entries for charging type with gray markers
+    type_legend_elements = [
+        Line2D([0], [0], marker=marker_map['v2g'], color='w', label='V2G', markerfacecolor='gray', markersize=text_size),
+        Line2D([0], [0], marker=marker_map['smart'], color='w', label='V1G', markerfacecolor='gray', markersize=text_size)
     ]
 
-    # Manually create legend entries for sizes (battery capacities)
-    # Manually create legend entries for sizes (battery capacities)
+    # Manually create legend entries for charging speeds
+    speed_legend_elements = [
+        Line2D([0], [0], marker='o', color='w', label='6.6 kW', markerfacecolor='blue', markersize=text_size),
+        Line2D([0], [0], marker='o', color='w', label='12 kW', markerfacecolor='green', markersize=text_size),
+        Line2D([0], [0], marker='o', color='w', label='19 kW', markerfacecolor='red', markersize=text_size),
+    ]
+
+    # Manually create legend entries for battery sizes
     size_legend_elements = [
-        Line2D([0], [0], marker='o', color='w', label=f'{key} kWh', markerfacecolor='gray', markersize=value/15)
+        Line2D([0], [0], marker='o', color='w', label=f'{key} kWh', markerfacecolor='gray', markersize=value / 15)
         for key, value in size_map.items()
     ]
+
     # Add the legend for charging type
-    type_legend = plt.legend(title='Charging Type', loc='upper right', bbox_to_anchor=(1.33, 1.02), fontsize=15, title_fontsize=17)
+    type_legend = plt.legend(handles=type_legend_elements, title='Optimal\nCharging Type', loc='upper right', bbox_to_anchor=(1.4, 1.02), fontsize=text_size-3, title_fontsize=17)
 
     # Add the legend for charging speed
-    speed_legend = plt.legend(handles=speed_legend_elements, title='Charging Speed', loc='upper right', bbox_to_anchor=(1.35, 0.78), fontsize=15, title_fontsize=17)
+    speed_legend = plt.legend(handles=speed_legend_elements, title='Optimal\nCharging Speed', loc='upper right', bbox_to_anchor=(1.42, 0.75), fontsize=text_size-3, title_fontsize=17)
 
     # Add the legend for battery sizes
-    size_legend = plt.legend(handles=size_legend_elements, title='Battery Size', loc='upper right', bbox_to_anchor=(1.33, 0.55), fontsize=15, title_fontsize=17)
+    size_legend = plt.legend(handles=size_legend_elements, title='Vehicle\nBattery Size', loc='upper right', bbox_to_anchor=(1.42, 0.43), fontsize=text_size-3, title_fontsize=17)
 
     # Adding all legends to the plot
     plt.gca().add_artist(type_legend)
     plt.gca().add_artist(speed_legend)
     plt.gca().add_artist(size_legend)
-    plt.grid()
 
     # Adjust the layout to ensure everything fits within the figure
     plt.tight_layout(rect=[0, 0, 0.81, 1])  # Adjust rect to make room for legends
 
+    # Save the plot
+    plt.savefig('batt.png', dpi=300)
+
     # Show the plot
+    plt.show()
+
+# %%
+def plot_benefit_vs_degradation(df, num_vehicles, baseline_cost_scenario='last', title='title', lb=0, ub=1000, title_size=18, axis_text_size=18):
+    df1 = df.copy()
+    df1 = df1[~((df1['Charging Type'] == 'smart') & (df1['V2G_Location'] == 'Home_Work'))]
+
+    # Convert Charging Speed to string and remove any trailing '.0'
+    df1['Charging Speed'] = df1['Charging Speed'].astype(str).str.rstrip('.0')
+    df1['Scenario'] = df1['Charging Type'] + ' - ' + df1['Charging Speed'] + ' - ' + df1['Plugged-in Sessions'] + ' - ' + df1['V2G_Location']
+
+    # Determine the baseline row based on user input
+    if baseline_cost_scenario == 'last':
+        baseline_row = df1.iloc[-1]
+    elif baseline_cost_scenario == 'second_last':
+        baseline_row = df1.iloc[-2]
+    elif isinstance(baseline_cost_scenario, int) and 0 <= baseline_cost_scenario < len(df1):
+        baseline_row = df1.iloc[baseline_cost_scenario]
+    else:
+        raise ValueError("Invalid baseline scenario specified. Use 'last', 'second_last', or an integer index within DataFrame range.")
+
+    # Calculate baseline cost
+    baseline_cost = baseline_row['Electricity_Cost'] + baseline_row['Degradation_Cost']
+
+    # Calculate the net benefit (Total Cost Savings) against the baseline and degradation separately, adjusted per vehicle
+    df1['Total_Benefit'] = (baseline_cost - (df1['Electricity_Cost'] + df1['Degradation_Cost'])) / num_vehicles
+    df1['Degradation_Cost'] = df1['Degradation_Cost'] / num_vehicles
+
+    # Define the speeds and locations for plotting
+    speeds = ['6.6', '12', '19']  # Speeds to consider
+    locations = ['Home', 'Home_Work']  # Locations for V2G scenarios
+    location_labels = {'Home': '', 'Home_Work': ''}
+
+    # Initialize plot
+    fig, ax = plt.subplots(figsize=(6, 6))
+    bar_height = 0.5  # Height for each grouped bar
+    smart_colors = ['#fdad1a', '#fdad1a', '#fdad1a']  # Color for Smart Charging bars
+    v2g_colors = {
+        'Home': '#219f71',  # Color for V2G Home
+        'Home_Work': '#004a6d',  # Color for V2G Home_Work
+        'Degradation': '#c4383a'  # Red for degradation
+    }
+
+    y_positions = []  # Store y positions for each group
+    scenario_labels = []  # Store labels for y positions
+    group_positions = []  # To store the center of each group for annotation
+    current_y = 2  # Current y position
+
+    # Smart Charging Section: Add each speed separately with labels
+    smart_bar_offsets = np.linspace(-bar_height/20, bar_height/20, len(speeds)) / 2
+
+    for idx, speed in enumerate(speeds):
+        smart_data = df1[
+            (df1['Charging Type'] == 'smart') &
+            (df1['Plugged-in Sessions'] == 'Actual') &
+            (df1['Charging Speed'] == speed) &
+            (df1['V2G_Location'] == 'Home')
+        ]
+        if not smart_data.empty:
+            degradation_cost = -smart_data['Degradation_Cost'].values[0]
+            total_benefit = smart_data['Total_Benefit'].values[0]
+
+            # Plot Degradation and Benefit bars directly next to each other for each speed
+            ax.barh(current_y + smart_bar_offsets[idx] - bar_height / 4 + 0.25, degradation_cost, height=bar_height, color=v2g_colors['Degradation'])
+            ax.barh(current_y + smart_bar_offsets[idx] + bar_height / 4, total_benefit, height=bar_height, color=smart_colors[idx])
+
+            # Add text labels for Degradation and Benefit
+            ax.text(degradation_cost - 0.25, current_y + smart_bar_offsets[idx], f"${degradation_cost:.2f}", ha='right', va='center', fontsize=axis_text_size-2)
+            ax.text(total_benefit + 0.25, current_y + smart_bar_offsets[idx], f"${total_benefit:.2f}", ha='left', va='center', fontsize=axis_text_size-2)
+
+            # Add individual labels for each speed
+            y_positions.append(current_y + smart_bar_offsets[idx])
+            scenario_labels.append(f"{speed} kW")  # Only show speed for Smart Charging
+            current_y += 0.6
+    # Calculate center of Smart Charging section for annotation
+    group_positions.append(np.mean([2.5 + offset for offset in smart_bar_offsets]))
+
+    # Draw horizontal dashed lines to indicate separation
+    first_line_position = current_y - 0.15
+    second_line_position = current_y + 4.25
+    ax.axhline(first_line_position, color='black', linestyle='--', linewidth=1)
+    ax.axhline(second_line_position, color='black', linestyle='--', linewidth=1)
+    ax.set_xlim(-lb, ub)
+    # Helper function to plot side-by-side bars for V2G with locations
+    def plot_v2g_section(data, section_label):
+        nonlocal current_y
+        centers = []
+
+        for speed in speeds:
+            bar_offsets = np.linspace(-bar_height*1.15, bar_height*1.15, len(locations)) / 2
+            for i, loc in enumerate(locations):
+                loc_data = data[(data['Charging Speed'] == speed) & (data['V2G_Location'] == loc)]
+                if not loc_data.empty:
+                    degradation_cost = -loc_data['Degradation_Cost'].values[0]
+                    total_benefit = loc_data['Total_Benefit'].values[0]
+
+                    ax.barh(current_y + bar_offsets[i] + 0.5, degradation_cost, height=bar_height, color=v2g_colors['Degradation'])
+                    ax.barh(current_y + bar_offsets[i] + bar_height, total_benefit, height=bar_height, color=v2g_colors[loc])
+
+                    # Add text labels for Degradation and Benefit
+                    ax.text(degradation_cost - 0.2, current_y + bar_offsets[i] + 0.5, f"${degradation_cost:.2f}", ha='right', va='center', fontsize=axis_text_size-2)
+                    ax.text(total_benefit + 0.2, current_y + bar_offsets[i] + 0.5, f"${total_benefit:.2f}", ha='left', va='center', fontsize=axis_text_size-2)
+
+                    # Construct label with speed and abbreviated location
+                    y_positions.append(current_y + bar_offsets[i] + 0.5)
+                    scenario_labels.append(f"{speed} kW {location_labels[loc]}")
+                    centers.append(current_y + bar_offsets[i])
+
+            current_y += 1.5  # Space between speeds
+        return np.mean(centers)  # Center for annotation
+
+    # Plot V2G Actual section by all speeds and store its center
+    v2g_actual_data = df1[(df1['Charging Type'] == 'v2g') & (df1['Plugged-in Sessions'] == 'Actual')]
+    if not v2g_actual_data.empty:
+        center = plot_v2g_section(v2g_actual_data, "V2G / No Change in Plugging Behavior")
+        group_positions.append(first_line_position + 2.75)
+
+    # Plot V2G Potential section by all speeds and store its center
+    v2g_potential_data = df1[(df1['Charging Type'] == 'v2g') & (df1['Plugged-in Sessions'] == 'Potential')]
+    if not v2g_potential_data.empty:
+        center = plot_v2g_section(v2g_potential_data, "V2G / Plugging-in When Parked")
+        group_positions.append(second_line_position + 2.75)
+
+    # Customize y-axis labels with all speeds retained
+    ax.set_yticks(y_positions)
+    ax.set_yticklabels(scenario_labels, fontsize=axis_text_size-2)
+    ax.axvline(0, color='grey', linewidth=1)
+    ax.set_xlabel('Benefit ($) / Degradation Cost ($)', fontsize=title_size)
+    ax.grid(True, axis='x', linestyle='--', alpha=0.7)
+    plt.xticks(fontsize=axis_text_size)
+
+    # Determine a suitable x-position for the annotations to ensure visibility
+    x_annotation_position = ub * 1.10  # This positions the text at 90% of the upper x-limit, adjust as needed
+
+    # Add group annotations to the right side of the plot within the visible range
+    group_labels = ['V1G', 'V2G\nNo Change in\nPlugging Behavior', 'V2G\nPlugging-in\nWhen Parked']
+    for pos, label in zip(group_positions, group_labels):
+        ax.text(x_annotation_position, pos, label, ha='center', va='center', fontsize=title_size-2, weight='bold', rotation=90)
+
+    # Correct legend creation by wrapping smart_patches[0] in brackets
+    smart_patches = [mpatches.Patch(color=smart_colors[i], label=f"Smart Charging") for i in range(len(speeds))]
+    v2g_patches = [
+        mpatches.Patch(color=v2g_colors['Home'], label="Bidirectional Charger\n at Home"),
+        mpatches.Patch(color=v2g_colors['Home_Work'], label="Bidirectional Charger\n at Home + Work")
+    ]
+    degradation_patch = mpatches.Patch(color=v2g_colors['Degradation'], label="Battery Degradation")
+
+    ax.legend(handles=[smart_patches[0]] + v2g_patches + [degradation_patch], loc='lower right', fontsize=axis_text_size-2)
+
+    # Customize x-axis ticks and labels
+    ax.set_xticks([ax.get_xlim()[0], 0, ax.get_xlim()[1]])
+    ax.set_xticklabels([f'$ Loss', f'Baseline Cost (${round((baseline_cost/num_vehicles),2)})', '$ Savings'], fontsize=axis_text_size-3)
+    ax.set_ylabel("Charging Scenarios by Charger Speed and Deployment Location", fontsize=title_size)
+    ax.set_xlabel("Net Benefit and Associated Degradation Cost per Vehicle ($)", fontsize=title_size)
+
+    plt.savefig(f'{title}.png', bbox_inches='tight', dpi=300)
+    plt.tight_layout()
+    plt.show()
+
+# %%
+
+
+def plot_cdf_by_group(df, df2, column_to_plot, xlabel, figsize=(10, 6)):
+    def plot_cdf(data, label, **kwargs):
+        """Helper function to plot the CDF of a data series."""
+        sorted_data = np.sort(data)
+        cdf = np.arange(1, len(sorted_data) + 1) / len(sorted_data)
+        plt.plot(sorted_data, cdf, label=label, linewidth=2, **kwargs)
+    group_by_columns = ['Charging Type', 'Charging Speed', 'Tariff']
+    # filtered_df = df[df['Tariff'] == 'RT Rate - Home']
+    filtered_df = df
+    # Group the DataFrame by specified columns
+    grouped = filtered_df.groupby(group_by_columns)
+    plt.figure(figsize=figsize)
+    # Loop through each group and plot the CDF for the specified column
+    for name, group in grouped:
+        # Assuming 'name' is a tuple with the same order as 'group_by_columns'
+        if len(name) == 3:  # Ensure there are exactly three components to unpack
+            charging_type, charging_speed, tariff = name
+
+            # Properly capitalize 'smart' to 'Smart' and 'v2g' to 'V2G'
+            if charging_type.lower() == 'smart':
+                charging_type = 'Smart'
+            elif charging_type.lower() == 'v2g':
+                charging_type = 'V2G'
+            # Remove ' - Home' from the tariff name
+            tariff = tariff.replace(' - Home', '')
+            # Create the label
+            label = f'{charging_type}, {charging_speed} kW, {tariff}'
+        else:
+            label = ', '.join([str(val) for val in name])  # Fallback if the structure is unexpected
+        # Plot the CDF for this group
+        plot_cdf(group[column_to_plot], label)
+        # Plot the baseline DataFrame (df2)
+    if df2 is not None and column_to_plot in df2.columns:
+        plot_cdf(df2[column_to_plot], label='Baseline', linestyle='--', color='black')  # Different style for the baseline
+
+    # Set the x and y labels with font size
+    plt.xlabel(xlabel, fontsize=18)
+    plt.ylabel("CDF", fontsize=18)
+    # Adjust x-ticks and y-ticks font size
+    plt.xticks(fontsize=18)
+    plt.yticks(fontsize=18)
+    # Add legend with increased font size
+    plt.legend(loc='best', fontsize=14)  # Increase the font size of the legend
+    plt.grid(True)
+    plt.xlim(-25, 25)  # Adjust as needed
+    # Display the plot
+    plt.show()
+
+# %%
+
+def plot_styled_box_by_scenario(df1, baseline_df1, xaxis, x_column, y_column, charge_type_column, tariff_column, behavior_column, speed_column, xlimit):
+    df = df1.copy()
+    baseline_df = baseline_df1.copy()
+    scenarios = {
+        'Baseline': (baseline_df, None),  # Baseline data as a single box
+        'Smart EV Rate': (df, ('smart', 'EV Rate - Home')),
+        'Smart RT Rate': (df, ('smart', 'RT Rate - Home')),
+        'V2G EV Rate': (df, ('v2g', 'EV Rate - Home')),
+        'V2G RT Rate': (df, ('v2g', 'RT Rate - Home'))
+    }
+
+    colors = {
+        'charging': {6.6: '#80a5b6', 12: '#004a6d'},
+        'discharging': {6.6: '#dc8889', 12: '#b03234'}
+    }
+
+    plt.figure(figsize=(8, 6))
+
+    base_spacing_smart = 3
+    base_spacing_v2g = 4
+    stack_spacing_smart = 1.0
+    stack_spacing_v2g = 2
+    v2g_rt_offset = 4
+
+    max_width = 1.5
+    min_width = 0.3
+    baseline_frequency = len(baseline_df)
+
+    y_pos = 0
+    y_tick_positions = []
+    y_tick_labels = []
+
+    # If the x_column is 'GHG_Value', modify the column based on abs(X_CHR)
+    if x_column == 'GHG_value':
+        df[x_column] = df[x_column] * df['X_CHR'].abs()
+        baseline_df[x_column] = baseline_df[x_column] * baseline_df['X_CHR'].abs()
+
+    for scenario_name, scenario_info in scenarios.items():
+        scenario_data, scenario_conditions = scenario_info
+
+        positions = []
+        data_to_plot = []
+        box_colors = []
+        box_widths = []
+
+        if scenario_name == 'Baseline':
+            data_to_plot.append(scenario_data[x_column])
+            positions.append(y_pos)
+            box_colors.append('#fdad1a')
+            box_widths.append(max_width)
+            y_tick_positions.append(y_pos)
+            y_tick_labels.append(scenario_name)
+            y_pos += base_spacing_smart
+
+            # Add text for the Baseline
+            plt.text(xlimit * 0.7, y_pos - 2*stack_spacing_smart, f"#{len(scenario_data)}", fontsize=10, va='center', color='black', ha='center')
+
+        else:
+            if 'v2g' in scenario_name.lower():
+                base_spacing = base_spacing_v2g
+                stack_spacing = stack_spacing_v2g
+                if scenario_name == 'V2G RT Rate':
+                    y_pos += v2g_rt_offset
+
+            else:
+                base_spacing = base_spacing_smart
+                stack_spacing = stack_spacing_smart
+
+            charging_type, tariff = scenario_conditions
+            scenario_data_filtered = scenario_data[(scenario_data[charge_type_column] == charging_type) &
+                                                   (scenario_data[tariff_column] == tariff)]
+
+            if 'v2g' in charging_type:
+                discharging_data = scenario_data_filtered[scenario_data_filtered[behavior_column] < 0]
+                for j, (speed, group) in enumerate(discharging_data.groupby(speed_column)):
+                    data_to_plot.append(group[x_column])
+                    positions.append(y_pos + j * stack_spacing)
+                    box_colors.append(colors['discharging'][speed])
+                    width = min_width + (len(group) / baseline_frequency) * (max_width - min_width)
+                    box_widths.append(width)
+
+                    # Add text label for frequency
+                    plt.text(xlimit * 0.80, y_pos + j * stack_spacing, f"#{len(group)}", fontsize=10, va='center', color='black')
+
+                charging_data = scenario_data_filtered[scenario_data_filtered[behavior_column] > 0]
+                for j, (speed, group) in enumerate(charging_data.groupby(speed_column)):
+                    data_to_plot.append(group[x_column])
+                    positions.append(y_pos + (j + 2) * stack_spacing)
+                    box_colors.append(colors['charging'][speed])
+                    width = min_width + (len(group) / baseline_frequency) * (max_width - min_width)
+                    box_widths.append(width)
+
+                    # Add text label for frequency
+                    plt.text(xlimit * 0.80, y_pos + (j + 2) * stack_spacing, f"#{len(group)}", fontsize=10, va='center', color='black')
+
+                y_tick_positions.append(y_pos + stack_spacing + 2)
+            else:
+                charging_data = scenario_data_filtered[scenario_data_filtered[behavior_column] > 0]
+                for j, (speed, group) in enumerate(charging_data.groupby(speed_column)):
+                    data_to_plot.append(group[x_column])
+                    positions.append(y_pos + j * stack_spacing)
+                    box_colors.append(colors['charging'][speed])
+                    width = min_width + (len(group) / baseline_frequency) * (max_width - min_width)
+                    box_widths.append(width)
+
+                    # Add text label for frequency
+                    plt.text(xlimit * 0.80, y_pos + j * stack_spacing, f"#{len(group)}", fontsize=10, va='center', color='black')
+
+                y_tick_positions.append(y_pos + (stack_spacing / 2))
+
+            y_tick_labels.append(scenario_name)
+            y_pos += base_spacing
+
+        bplot = plt.boxplot(data_to_plot, positions=positions, vert=False, patch_artist=True, widths=box_widths, whis=3.3)
+        for patch, color in zip(bplot['boxes'], box_colors):
+            patch.set_facecolor(color)
+
+    plt.hlines(y=2, xmin=-xlimit, xmax=xlimit, linestyles='--', color='grey', linewidth=1)
+    plt.hlines(y=5, xmin=-xlimit, xmax=xlimit, linestyles='--', color='grey', linewidth=1)
+    plt.hlines(y=8, xmin=-xlimit, xmax=xlimit, linestyles='--', color='grey', linewidth=1)
+    plt.hlines(y=16, xmin=-xlimit, xmax=xlimit, linestyles='--', color='grey', linewidth=1)
+
+    plt.yticks(y_tick_positions, y_tick_labels, fontsize=12)
+    plt.xticks(fontsize=14)
+    plt.xlim(-xlimit, xlimit)
+    plt.xlabel(xaxis, fontsize=16)
+
+    # Create legend with an additional entry for box width meaning
+    legend_patches = [
+        Patch(color='#dc8889', label='Discharging - 6.6 kW'),
+        Patch(color='#b03234', label='Discharging - 12 kW'),
+        Patch(color='#80a5b6', label='Charging - 6.6 kW'),
+        Patch(color='#004a6d', label='Charging - 12 kW'),
+        Patch(color='#fdad1a', label='Baseline'),
+        Patch(color='white', edgecolor='black', label='Box width indicates\n charging frequency')
+    ]
+    plt.legend(handles=legend_patches, loc='lower left', fontsize=12)
+
+    plt.tight_layout()
+    plt.show()
+# %%
+
+def plot_styled_box_by_scenarioP(df1, baseline_df1, xaxis, x_column, y_column, charge_type_column, tariff_column, behavior_column, speed_column, xlimit):
+    df = df1.copy()
+    baseline_df = baseline_df1.copy()
+    scenarios = {
+        'Baseline': (baseline_df, None),  # Baseline data as a single box
+        'Smart EV Rate': (df, ('smart', 'EV Rate - Home')),
+        'Smart RT Rate': (df, ('smart', 'RT Rate - Home')),
+        'V2G EV Rate': (df, ('v2g', 'EV Rate - Home')),
+        'V2G RT Rate': (df, ('v2g', 'RT Rate - Home'))
+    }
+
+    colors = {
+        'charging': {6.6: '#80a5b6', 12: '#004a6d'},
+        'discharging': {6.6: '#dc8889', 12: '#b03234'}
+    }
+
+    plt.figure(figsize=(8, 6))
+
+    base_spacing_smart = 5
+    base_spacing_v2g = 6
+    stack_spacing_smart = 2.0
+    stack_spacing_v2g = 6
+    v2g_rt_offset = 17
+
+    max_width = 1.5
+    min_width = 0.3
+    baseline_frequency = len(baseline_df)
+
+    y_pos = 0
+    y_tick_positions = []
+    y_tick_labels = []
+
+    # If the x_column is 'GHG_Value', modify the column based on abs(X_CHR)
+    if x_column == 'GHG_value':
+        df[x_column] = df[x_column] * df['X_CHR'].abs()
+        baseline_df[x_column] = baseline_df[x_column] * baseline_df['X_CHR'].abs()
+
+    for scenario_name, scenario_info in scenarios.items():
+        scenario_data, scenario_conditions = scenario_info
+
+        positions = []
+        data_to_plot = []
+        box_colors = []
+        box_widths = []
+
+        if scenario_name == 'Baseline':
+            data_to_plot.append(scenario_data[x_column])
+            positions.append(y_pos)
+            box_colors.append('#fdad1a')
+            box_widths.append(max_width)
+            y_tick_positions.append(y_pos)
+            y_tick_labels.append(scenario_name)
+            y_pos += base_spacing_smart
+
+            # Add text for the Baseline
+            plt.text(xlimit * 0.7, y_pos - 2*stack_spacing_smart, f"#{len(scenario_data)}", fontsize=10, va='center', color='black', ha='center')
+
+        else:
+            if 'v2g' in scenario_name.lower():
+                base_spacing = base_spacing_v2g
+                stack_spacing = stack_spacing_v2g
+                if scenario_name == 'V2G RT Rate':
+                    y_pos += v2g_rt_offset
+
+            else:
+                base_spacing = base_spacing_smart
+                stack_spacing = stack_spacing_smart
+
+            charging_type, tariff = scenario_conditions
+            scenario_data_filtered = scenario_data[(scenario_data[charge_type_column] == charging_type) &
+                                                   (scenario_data[tariff_column] == tariff)]
+
+            if 'v2g' in charging_type:
+                discharging_data = scenario_data_filtered[scenario_data_filtered[behavior_column] < 0]
+                for j, (speed, group) in enumerate(discharging_data.groupby(speed_column)):
+                    data_to_plot.append(group[x_column])
+                    positions.append(y_pos + j * stack_spacing)
+                    box_colors.append(colors['discharging'][speed])
+                    width = min_width + (len(group) / baseline_frequency) * (max_width - min_width)
+                    box_widths.append(width)
+
+                    # Add text label for frequency
+                    plt.text(xlimit * 0.80, y_pos + j * stack_spacing, f"#{len(group)}", fontsize=10, va='center', color='black')
+
+                charging_data = scenario_data_filtered[scenario_data_filtered[behavior_column] > 0]
+                for j, (speed, group) in enumerate(charging_data.groupby(speed_column)):
+                    data_to_plot.append(group[x_column])
+                    positions.append(y_pos + (j + 2) * stack_spacing)
+                    box_colors.append(colors['charging'][speed])
+                    width = min_width + (len(group) / baseline_frequency) * (max_width - min_width)
+                    box_widths.append(width)
+
+                    # Add text label for frequency
+                    plt.text(xlimit * 0.80, y_pos + (j + 2) * stack_spacing, f"#{len(group)}", fontsize=10, va='center', color='black')
+
+                y_tick_positions.append(y_pos + stack_spacing + 2)
+            else:
+                charging_data = scenario_data_filtered[scenario_data_filtered[behavior_column] > 0]
+                for j, (speed, group) in enumerate(charging_data.groupby(speed_column)):
+                    data_to_plot.append(group[x_column])
+                    positions.append(y_pos + j * stack_spacing)
+                    box_colors.append(colors['charging'][speed])
+                    width = min_width + (len(group) / baseline_frequency) * (max_width - min_width)
+                    box_widths.append(width)
+
+                    # Add text label for frequency
+                    plt.text(xlimit * 0.80, y_pos + j * stack_spacing, f"#{len(group)}", fontsize=10, va='center', color='black')
+
+                y_tick_positions.append(y_pos + (stack_spacing / 2))
+
+            y_tick_labels.append(scenario_name)
+            y_pos += base_spacing
+
+        bplot = plt.boxplot(data_to_plot, positions=positions, vert=False, patch_artist=True, widths=box_widths, whis=3.3)
+        for patch, color in zip(bplot['boxes'], box_colors):
+            patch.set_facecolor(color)
+
+    plt.hlines(y=3, xmin=-xlimit, xmax=xlimit, linestyles='--', color='grey', linewidth=1)
+    plt.hlines(y=9, xmin=-xlimit, xmax=xlimit, linestyles='--', color='grey', linewidth=1)
+    plt.hlines(y=13.5, xmin=-xlimit, xmax=xlimit, linestyles='--', color='grey', linewidth=1)
+    plt.hlines(y=35, xmin=-xlimit, xmax=xlimit, linestyles='--', color='grey', linewidth=1)
+
+    plt.yticks(y_tick_positions, y_tick_labels, fontsize=12)
+    plt.xticks(fontsize=14)
+    # plt.ylabel(y_column, fontsize=16)
+    plt.xlim(-xlimit, xlimit)
+    plt.xlabel(xaxis, fontsize=16)
+
+    # Create legend with an additional entry for box width meaning
+    legend_patches = [
+        Patch(color='#dc8889', label='Discharging - 6.6 kW'),
+        Patch(color='#b03234', label='Discharging - 12 kW'),
+        Patch(color='#80a5b6', label='Charging - 6.6 kW'),
+        Patch(color='#004a6d', label='Charging - 12 kW'),
+        Patch(color='#fdad1a', label='Baseline'),
+        # Patch(color='white', edgecolor='black', label='Box width indicates\n charging frequency')
+    ]
+    plt.legend(handles=legend_patches, loc='lower left', fontsize=11)
+
+    plt.tight_layout()
+    plt.show()
+
+# %%
+
+def plot_filtered_data(df, ghg_value, chtype):
+    # Fill NaN values in all columns (if any) to consider them in one group
+    df.fillna('Actual', inplace=True)
+
+    # Filter data based on GHG value
+    filtered_df = df[((df['GHG Cost'] == ghg_value) & (df['Charging Type'] == chtype)) | (df['Charging Type'] == 'Actual')]
+    filtered_df = filtered_df[(filtered_df['Tariff'].str.contains('Home') & ~filtered_df['Tariff'].str.contains('Home&Work')) | ((filtered_df['Charging Type'] == 'Actual'))]
+    # Group the data based on the columns except 'daily_hour' and 'X_CHR'
+    grouped = filtered_df.groupby(['Charging Type', 'Charging Speed', 'GHG Cost', 'Tariff', 'Charging_Behavior'])
+
+    # Plot the data
+    plt.figure(figsize=(12, 6))
+
+    for name, group in grouped:
+        plt.plot(group['daily_hour'], group['X_CHR'], label=str(name))
+
+    plt.xlabel('Hour', fontsize=14)
+    plt.ylabel('Power kW', fontsize=14)
+    plt.title(f'Charging Demand Curve (GHG Cost: {ghg_value})')
+    plt.legend(title='Groups', bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.grid(True)
+    plt.tight_layout()
+    plt.grid(True)
+    plt.show()
+
+
+
+
+
+def calculate_benefit(row, baseline_rows):
+    baseline = baseline_rows[(baseline_rows['Vehicle'] == row['Vehicle']) &
+                             (baseline_rows['Social Cost of Carbon'] == row['Social Cost of Carbon'])]
+    baseline_cost = baseline['Total_Cost'].values[0] if not baseline.empty else None
+    return baseline_cost - row['Total_Cost'] if baseline_cost is not None else None
+
+
+# Define the plotting function
+def plot_benefit_by_scenario(df, scenario_filter='Actual', charging_speed=19, fz=18):
+    baseline_rows = df[df['Scenario'] == 'Actual-Actual-TOU Rate']
+    filtered_df = df[(df['Scenario'].str.contains(scenario_filter)) & (df['Charging Speed'] == charging_speed)]
+
+    filtered_df['Benefit'] = filtered_df.apply(lambda row: calculate_benefit(row, baseline_rows), axis=1)
+    filtered_df['Charging_Type'] = filtered_df['Scenario'].apply(lambda x: 'V1G' if 'Smart' in x else 'V2G')
+    filtered_df['Charging_Tariff'] = filtered_df['Charging_Type'] + "-" + filtered_df['Tariff']
+
+    plt.figure(figsize=(8, 6))
+    palette = {0.05: '#219f71', 0.191: '#004a6d'}
+    sns.boxplot(data=filtered_df, x='Charging_Tariff', y='Benefit', hue='Social Cost of Carbon',
+                palette=palette, order=['V1G-TOU Rate', 'V1G-EV Rate', 'V1G-RT Rate',
+                                        'V2G-TOU Rate', 'V2G-EV Rate', 'V2G-RT Rate'])
+
+    # Dashed line to separate V1G and V2G sections
+    plt.axvline(2.5, color='grey', linestyle='--', linewidth=1)
+
+    # Set up the Y-axis formatter to add dollar sign
+    plt.gca().yaxis.set_major_formatter(FuncFormatter(lambda x, _: f'${x:,.0f}'))
+
+    # Customize labels and legend
+    plt.xlabel('Charging Type and Tariff', fontsize=fz)
+    plt.ylabel('Benefit from Optimal Charging', fontsize=fz)
+    plt.xticks(rotation=45, fontsize=fz)
+    plt.yticks(fontsize=fz)
+    plt.grid(axis='y', alpha=0.5)
+
+    # Update legend labels
+    handles, _ = plt.gca().get_legend_handles_labels()
+    new_labels = ['$ 50 / metric tonne of CO\u2082', '$ 191 / metric tonne of CO\u2082']
+    plt.legend(handles=handles, labels=new_labels, title='Social Cost of Carbon', loc='upper left',
+               fontsize=fz, title_fontsize=fz)
+
+    plt.tight_layout()
+    plt.savefig(f'plot.png', bbox_inches='tight', dpi=300)
+    plt.show()
+
+def calculate_ghg_difference(df1, df2):
+    # Calculate total GHG for CDF_N and costs_A_TOU_rate_hourly_in
+    df1["GHG_Total"] = df1["GHG_value"] * abs(df1["X_CHR"])
+    df2["GHG_Total_actual"] = df2["GHG_value"] * df2["X_CHR"]
+
+    # Group CDF_N by specified columns and sum GHG_Total
+    grouped = df1.groupby(["Vehicle", "Charging Type", "Charging Speed", "GHG Cost", "Tariff", "Charging_Behavior"])["GHG_Total"].sum().reset_index(drop=False)
+
+    # Sum GHG_Total_actual by Vehicle for costs_A_TOU_rate_hourly_in
+    costs_A_TOU_rate_hourly_in_sum = df2.groupby("Vehicle")["GHG_Total_actual"].sum().reset_index(drop=False)
+
+    # Merge CDF_N_grouped with costs_A_TOU_rate_hourly_in_sum on Vehicle
+    grouped = pd.merge(grouped, costs_A_TOU_rate_hourly_in_sum, on="Vehicle", how="left")
+
+    # Calculate the difference between GHG_Total_actual and GHG_Total
+    grouped["diff"] = (grouped["GHG_Total_actual"] - grouped["GHG_Total"]) / 1000000
+    return grouped
+
+
+def calculate_cost_difference(df1, df2):
+
+    # Group CDF_N by specified columns and sum GHG_Total
+    grouped = df1.groupby(["Vehicle", "Charging Type", "Charging Speed", "GHG Cost", "Tariff", "Charging_Behavior"])["Electricity_Cost"].sum().reset_index(drop=False)
+
+    # Sum GHG_Total_actual by Vehicle for costs_A_TOU_rate_hourly_in
+    costs_A_TOU_rate_hourly_in_sum = df2.groupby("Vehicle")["Electricity_Cost"].sum().reset_index(drop=False)
+    costs_A_TOU_rate_hourly_in_sum.rename(columns={"Electricity_Cost": "Electricity_Cost_Actual"}, inplace=True)
+
+    # Merge CDF_N_grouped with costs_A_TOU_rate_hourly_in_sum on Vehicle
+    grouped = pd.merge(grouped, costs_A_TOU_rate_hourly_in_sum, on="Vehicle", how="left")
+
+    # Calculate the difference between GHG_Total_actual and GHG_Total
+    grouped["diff"] = (grouped["Electricity_Cost_Actual"] - grouped["Electricity_Cost"])
+    return grouped
+
+
+def draw_rose_chart_parking(df, text_size=13):
+    # Step 1: Group by destination label and calculate the average parking time
+    avg_parking_times = df.groupby('destination_label')['parking_time_minute'].mean()
+
+    # Step 2: Calculate the proportion of trips for each destination
+    destination_counts = df['destination_label'].value_counts(normalize=True)  # Get proportions
+
+    # Step 3: Order destinations and get corresponding parking times and proportions
+    destinations = ['Home', 'Work', 'Other']
+    parking_times = [avg_parking_times.get(dest, 0) for dest in destinations]
+    proportions = [destination_counts.get(dest, 0) for dest in destinations]
+
+    # Step 4: Add a small constant to avoid zero ylim
+    parking_times = [max(time, 1) for time in parking_times]  # Avoid zero parking times
+
+    # Angles for each destination, adjusted for the proportions (as pie chart segments)
+    total_proportions = np.cumsum([0] + proportions[:-1]) * 2 * np.pi  # Starting angles for each segment
+    width = [prop * 2 * np.pi for prop in proportions]  # Width of each bar proportional to sample size
+    custom_colors = ['#3062ae', '#fdad1a', '#c4383a']  # Example custom colors (red, green, blue)
+    # Step 5: Use custom colors or default to seaborn palette
+    if custom_colors is None:
+        colors = sns.color_palette("crest", len(destinations))  # Default color scheme
+    else:
+        colors = custom_colors[:len(destinations)]  # Use custom colors if provided
+
+    # Create a figure for the rose chart
+    fig, ax = plt.subplots(figsize=(8, 8), subplot_kw={'projection': 'polar'})
+
+    # Plot bars with width proportional to destination proportions and radius to parking times
+    bars = ax.bar(total_proportions, parking_times, color=colors,
+                  width=width, edgecolor='w', align='edge')
+
+    # Step 6: Add labels to the bars
+    for angle, bar, dest, proportion in zip(total_proportions, bars, destinations, proportions):
+        # Display average parking time and proportion as percentage
+        ax.text(angle + bar.get_width() / 2, bar.get_height() + 10,
+                f'{proportion * 100:.1f}%      ',
+                ha='center', fontsize=text_size +5)
+
+    # Customize the chart
+    ax.set_theta_offset(np.pi / 2)
+    ax.set_theta_direction(-1)
+    ax.set_ylim(0, max(parking_times) * 1.2)  # Set the limit for radial axis
+    ax.set_xticks(total_proportions + np.array(width) / 2)  # Center the xticks on each segment
+    ax.set_xticklabels(destinations, fontsize=text_size + 5)
+
+    # Add the y-axis label (radial axis)
+    # ax.set_ylabel('Time by Location (minutes)', labelpad=40, fontsize=text_size + 5)  # Adjust labelpad as needed
+
+    plt.yticks(fontsize=text_size + 2)
+    plt.figtext(0.5, 0.02, 'Time by Location (minutes)', ha='center', fontsize=text_size + 5)
+    plt.savefig('rose_chart_parking_with_proportions_full_circle.png', bbox_inches='tight', dpi=600)
+    plt.show()
+
+def draw_rose_chart_charging(df1, text_size=13):
+    df = df1.copy()
+    # Create the destination_new column based on the logic provided
+    df['destination_new'] = df.apply(
+        lambda row: f"{row['destination_label']} Charging" if pd.notna(row['energy[charge_type][type]']) else f"{row['destination_label']} Parking", axis=1
+    )
+    # Create the charging_pie column
+    df['charging_pie'] = df['duration_charging_min'].fillna(0)
+    df['charging_pie'] = df['charging_pie'] + 300
+
+    # Step 1: Ensure the order of the destination_new column (Charging next to Parking for each destination)
+    ordered_destinations = ['Home Charging', 'Home Parking', 'Work Charging', 'Work Parking', 'Other Charging', 'Other Parking']
+    df['destination_new'] = pd.Categorical(df['destination_new'], categories=ordered_destinations, ordered=True)
+    df = df.sort_values('destination_new')  # Sort by the specified order
+    custom_colors = ['#3062ae', '#3fbcd9', '#c6891c', '#fdad1a', '#840965', '#c4383a']  # Custom colors for 6 segments
+    # Step 2: Group by destination_new and calculate the average charging time (charging_pie)
+    avg_charging_times = df.groupby('destination_new')['charging_pie'].mean()
+
+    # Step 3: Calculate the proportion of trips for each destination_new
+    destination_counts = df['destination_new'].value_counts(normalize=True)  # Get proportions
+
+    # Step 4: Order destinations and get corresponding charging times and proportions
+    destinations = df['destination_new'].unique()  # Get all unique values for destination_new
+    charging_times = [avg_charging_times.get(dest, 0) for dest in destinations]
+
+    proportions = [destination_counts.get(dest, 0) for dest in destinations]
+
+    # Angles for each destination, adjusted for the proportions (as pie chart segments)
+    total_proportions = np.cumsum([0] + proportions[:-1]) * 2 * np.pi  # Starting angles for each segment
+    width = [prop * 2 * np.pi for prop in proportions]  # Width of each bar proportional to sample size
+
+    # Step 5: Assign custom colors (you can specify different colors for Parking and Charging)
+    if custom_colors is None:
+        colors = sns.color_palette("crest", len(destinations))  # Default color scheme
+    else:
+        colors = custom_colors[:len(destinations)]  # Use custom colors if provided
+
+    # Create a figure for the rose chart
+    fig, ax = plt.subplots(figsize=(9, 8), subplot_kw={'projection': 'polar'})
+
+    # Plot bars with width proportional to destination proportions and radius to charging times
+    bars = ax.bar(total_proportions, charging_times, color=colors,
+                  width=width, edgecolor='w', align='edge')
+
+    # Step 6: Add labels to the bars with adjusted positioning for readability
+    for angle, bar, dest, proportion in zip(total_proportions, bars, destinations, proportions):
+        # Adjust text placement to avoid overlap
+        rotation_angle = np.degrees(angle + bar.get_width() / 2)
+        if rotation_angle > 180:
+            alignment = 'right'
+        else:
+            alignment = 'left'
+        ax.text(angle + bar.get_width() / 2, bar.get_height() + 20,
+                f'{proportion * 100:.1f}%',
+                ha=alignment, fontsize=text_size + 5)
+
+    # Customize the chart
+    ax.set_theta_offset(np.pi / 2)  # Keep the theta axis starting at the top (90 degrees)
+    ax.set_theta_direction(-1)
+    ax.set_ylim(-0, max(charging_times) * 1.2)  # Set the limit for radial axis from -400 minutes
+
+    # Step 7: Remove default radial tick labels
+    ax.set_yticklabels([])  # Remove the radial tick labels (e.g., -300, 0, 300)
+
+    # Step 8: Add custom radial tick labels at the desired angle (90 degrees)
+    radial_ticks = np.arange(0, 750, 100)  # Custom radial ticks, e.g., from 0 to 600
+    radial_labels = ["", "", "", "0", "100", "200", "300", "400"]  # Custom labels for the radial axis
+    for tick, label in zip(radial_ticks, radial_labels):
+        ax.text(np.pi / 2, tick, f'{label}',  # Place custom radial labels at 90 degrees (top of the plot)
+                ha='center', va='center', fontsize=text_size, rotation=45)
+
+    # Step 9: Keep the x-axis (theta axis) labels intact
+    ax.set_xticks(total_proportions + np.array(width) / 2)  # Center the xticks on each segment
+    ax.set_xticklabels(destinations, fontsize=text_size + 5)
+
+    # Add the y-axis label (radial axis) and adjust its position
+    # Add the y-axis label (radial axis) and adjust its position
+    # ax.set_ylabel('Time by Location (minutes)', fontsize=text_size + 5)
+    ax.yaxis.set_label_coords(-0.15, 0.5)  # Adjust the position of the radial axis label
+    # Add the title at the bottom of the figure
+    plt.figtext(0.5, 0.02, 'Time by Location (minutes)', ha='center', fontsize=text_size + 5)
+
+    plt.savefig('rose_chart_charging_with_proportions_full_circle.png', bbox_inches='tight', dpi=600)
+    plt.show()
+
+def calculate_charge_difference(df1):
+    # Filter out rows where X_CHR is less than or equal to 0
+    df1 = df1[df1["X_CHR"] > 0]
+
+    # Group by the relevant columns and sum X_CHR
+    grouped = df1.groupby(["Vehicle", "Charging Type", "Charging Speed", "GHG Cost", "Tariff", "Charging_Behavior"])["X_CHR"].sum().reset_index(drop=False)
+
+    # Step 1: Get one row for each vehicle where the Charging Type is "smart"
+    smart_charging = grouped[grouped["Charging Type"] == "smart"].drop_duplicates(subset=["Vehicle"], keep="first")
+
+    # Step 2: Merge the baseline (smart charging X_CHR) back into the original grouped DataFrame
+    grouped = grouped.merge(smart_charging[["Vehicle", "X_CHR"]], on="Vehicle", how="left", suffixes=("", "_baseline"))
+    grouped = grouped[grouped["Charging Type"] != "smart"]
+    grouped["diff_kwh"] = grouped["X_CHR"] - grouped["X_CHR_baseline"]
+    grouped["virtual_mile"] = grouped["diff_kwh"] * 2.6
+    return grouped
+
+
+def draw_box_plot(df1, text_size=13):
+    df = df1.copy()
+
+    # Step 1: Remove the '- Home' suffix from the Tariff column
+    df['Tariff'] = df['Tariff'].str.replace(' - Home', '', regex=False)
+
+    # Step 2: Rename behaviors (Actual -> No change in plugging behavior, Potential -> Plugging in when parked)
+    df['Charging_Behavior'] = df['Charging_Behavior'].replace({
+        'Actual': 'No change in plugging behavior',
+        'Potential': 'Plugging in when parked'
+    })
+
+    # Step 3: Convert Charging Speed to string, ensure it's categorized properly and ordered
+    df['Charging Speed'] = df['Charging Speed'].astype(str).str.rstrip('.0')
+    df['Charging Speed'] = pd.Categorical(df['Charging Speed'], categories=['6.6', '12', '19'], ordered=True)
+
+    # Step 4: Combine Charging_Behavior, Tariff, and Charging Speed into one column for y-axis
+    df['Charging_Info'] = df['Charging_Behavior'] + ' | ' + df['Tariff']
+
+    # Step 5: Define a specific order for the y-axis categories
+    behavior_order = [
+        'Plugging in when parked | RT Rate',
+        'Plugging in when parked | EV Rate',
+        'No change in plugging behavior | RT Rate',
+        'No change in plugging behavior | EV Rate'
+    ]
+    df['Charging_Info'] = pd.Categorical(df['Charging_Info'], categories=behavior_order, ordered=True)
+
+    # Step 6: Draw the box plot (horizontal orientation) and reverse the charging speed order
+    fig, ax = plt.subplots(figsize=(8, 6))
+    box_colors = ['#c4383a', '#219f71', '#004a6d']
+    # Provide color palette, or default to 'Set2' if no custom colors are provided
+    if box_colors is None:
+        box_colors = sns.color_palette("Set2", 3)  # Default color palette for 3 speeds
+
+    sns.boxplot(y="Charging_Info", x="virtual_mile", hue="Charging Speed", data=df, hue_order=['19', '12', '6.6'], palette=box_colors)
+    # Example usage with custom colors
+    # Step 7: Customize the legend to include 'kW'
+    handles, labels = ax.get_legend_handles_labels()
+    labels = [f'{label} kW' for label in labels]  # Add kW to the legend labels
+    ax.legend(handles, labels, title="Charging Speed", loc="best", fontsize=text_size, title_fontsize=text_size)
+
+    # Step 8: Manually set the y-axis labels with '\n' (including rotation and alignment)
+    primary_labels = [
+        'Plugging in\nwhen parked',
+        'Plugging in\nwhen parked',
+        'No change in\nplugging behavior',
+        'No change in\nplugging behavior'
+    ]  # Manual labels with '\n'
+
+    secondary_labels = [
+        'RT Rate',
+        'EV Rate',
+        'RT Rate',
+        'EV Rate'
+    ]  # Tariff labels for the secondary y-axis
+
+    # Set primary y-axis ticks and manual labels
+    ax.set_yticks(range(len(primary_labels)))  # Align with the categories
+    ax.set_yticklabels(primary_labels, fontsize=text_size)
+
+    # Create a secondary y-axis and set the secondary labels
+    ax2 = ax.secondary_yaxis('right')
+    ax2.set_yticks(range(len(secondary_labels)))
+    ax2.set_yticklabels(secondary_labels, fontsize=text_size, va='center', ha='center', rotation=90)
+
+    # Move the secondary y-tick labels away from the axis
+    ax2.tick_params(axis='y', which='major', pad=20)
+    ax.tick_params(axis='x', labelsize=text_size)
+
+    # Step 9: Format x-axis numbers with commas for thousands
+    ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: f'{int(x):,}'))
+    ax.axhline(0.5, color='black', linestyle='--', linewidth=1)
+    ax.axhline(1.5, color='black', linestyle='--', linewidth=1)
+    ax.axhline(2.5, color='black', linestyle='--', linewidth=1)
+    # Step 10: Customize the plot
+    ax.set_xlabel("Virtual Mile", fontsize=text_size)
+    ax.set_ylabel("", fontsize=text_size)  # Primary y-axis label (left side)
+
+    # Step 11: Show the plot
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_box_by_tariff(df1, df2, fz=18, figtitle="title", show_dollar=False):
+    # Concatenate the two DataFrames
+    df_combined = pd.concat([df1, df2], axis=0, ignore_index=True)
+
+    # Filter the DataFrame based on the selected tariff
+    df_filtered = df_combined[df_combined["Tariff"] == "RT Rate - Home"].copy()
+
+    # Rename charging behaviors and types as specified
+    df_filtered["Charging_Behavior"] = df_filtered["Charging_Behavior"].replace({
+        "Actual": "No change in plugging behavior",
+        "Potential": "Plugging in when parked"
+    })
+    df_filtered["Charging Type"] = df_filtered["Charging Type"].replace({
+        "smart": "V1G",
+        "v2g": "V2G"
+    })
+
+    # Define the scenario order and add "Scenario" column for combined grouping
+    scenario_order = [
+        "V2G | Plugging in when parked",
+        "V2G | No change in plugging behavior",
+        "V1G | Plugging in when parked",
+        "V1G | No change in plugging behavior"
+    ]
+    df_filtered['Scenario'] = df_filtered["Charging Type"] + ' | ' + df_filtered["Charging_Behavior"]
+
+    # Set the color palette for Charging Speed
+    charging_speed_colors = {6.6: '#004a6d', 12: '#219f71', 19: '#c4383a'}
+
+    # Set up the figure and main axis
+    fig, ax = plt.subplots(figsize=(8, 6))
+
+    # Plot the boxplot
+    sns.boxplot(
+        data=df_filtered,
+        y="Scenario",
+        x="diff",
+        hue="Charging Speed",
+        palette=charging_speed_colors,
+        dodge=True,
+        order=scenario_order,
+        ax=ax,
+        hue_order=[19, 12, 6.6],  # Reversing the order within each group
+        legend=False  # Disable automatic legend from Seaborn
+    )
+
+    # Adjust y-tick labels for primary y-axis
+    y_labels_left = ["V2G", "V2G", "V1G", "V1G"]
+    y_labels_left = ["Plugging in\nwhen\nparked", "No change in\nplugging\nbehavior", "Plugging in\nwhen\nparked", "No change in\nplugging\nbehavior"]
+    ax.set_yticks([0, 1, 2, 3])
+    ax.set_yticklabels(y_labels_left, ha='left', fontsize=fz)
+
+    # Move the y-tick labels further outside the plot
+    ax.tick_params(axis='y', pad=90)  # Increase pad to push y-ticks outside the plot
+    ax.set_ylabel("", labelpad=16, fontsize=fz)
+
+    # Secondary y-axis for Charging Behavior
+    ax2 = ax.twinx()
+    y_labels_right = ["V2G", "V2G", "V1G", "V1G"]
+    ax2.set_ylim(ax.get_ylim())  # Sync limits
+    ax2.set_yticks([0, 1, 2, 3])
+    ax2.set_yticklabels(y_labels_right, rotation=90, va='center', ha="left", fontsize=fz+2)
+
+    # Add dashed lines to separate V1G and V2G groups
+    plt.axhline(1.5, color='grey', linestyle='--', linewidth=1)
+    plt.axhline(2.5, color='grey', linestyle='--', linewidth=1)
+    plt.axhline(0.5, color='grey', linestyle='--', linewidth=1)
+
+    # Customizing the legend to add "kW" after each speed
+    legend_labels = [f"{speed} kW" for speed in charging_speed_colors.keys()]
+    handles = [mpatches.Patch(color=color, label=label) for color, label in zip(charging_speed_colors.values(), legend_labels)]
+    plt.legend(handles=handles, title="Charging Speed", loc='lower right', fontsize=fz, title_fontsize=fz)
+
+    # Set title and labels
+    ax.set_xlabel(figtitle, fontsize=fz+2)
+
+    # Adjust the x-axis ticks based on show_dollar parameter
+    if show_dollar:
+        x_ticks = ax.get_xticks()
+        ax.set_xticklabels([f"${int(tick)}" for tick in x_ticks], fontsize=fz)
+    else:
+        ax.tick_params(axis='x', labelsize=fz)
+
+    plt.tight_layout()
+    plt.savefig(f'{figtitle}.png', bbox_inches='tight', dpi=300)
     plt.show()

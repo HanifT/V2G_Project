@@ -27,6 +27,7 @@ loaded_P_data_battery = load_and_clean_data('all_hourly_charging_P_data_battery.
 all_hourly_charging_N_data_grouped_battery = group_charging_data(loaded_N_data_battery)
 all_hourly_charging_P_data_grouped_battery = group_charging_data(loaded_P_data_battery)
 # %%
+
 # Process the hourly charging data for N and P datasets
 all_hourly_charging_data_grouped_battery = process_hourly_charging_data(all_hourly_charging_N_data_grouped_battery, all_hourly_charging_P_data_grouped_battery)
 # Add smart averages and percentage drop
@@ -35,7 +36,7 @@ all_hourly_charging_data_grouped_battery = add_smart_avg(all_hourly_charging_dat
 # Merge costs and calculate the total cost
 all_hourly_charging_data_grouped_battery = merge_and_calculate_costs(all_hourly_charging_data_grouped_battery, actual_cost, bev_distance)
 
-all_hourly_charging_data_grouped_battery = update_savings_columns(all_hourly_charging_data_grouped_battery, batt_price, current_year=2023, v2g_cost=6000, v1g_cost=1600)
+all_hourly_charging_data_grouped_battery = update_savings_columns(all_hourly_charging_data_grouped_battery, batt_price, current_year=2023, v2g_cost=7300, v1g_cost=500, v1g_cost_19kw=1600)
 
 all_hourly_charging_data_grouped_battery = all_hourly_charging_data_grouped_battery.reset_index(drop=True)
 
@@ -51,5 +52,7 @@ all_hourly_charging_data_grouped_battery_summary_Potential_0 = all_hourly_chargi
 all_hourly_charging_data_grouped_battery_summary_Potential_50 = all_hourly_charging_data_grouped_battery_summary_Potential[all_hourly_charging_data_grouped_battery_summary_Potential["GHG Cost"] == 0.05]
 all_hourly_charging_data_grouped_battery_summary_Potential_191 = all_hourly_charging_data_grouped_battery_summary_Potential[all_hourly_charging_data_grouped_battery_summary_Potential["GHG Cost"] == 0.191]
 
-plot_saving_ev_vs_distance(all_hourly_charging_data_grouped_battery_summary_Actual_191, add_actual_lines=True, add_potential_lines=False, ylim=3500)
-plot_saving_ev_vs_distance(all_hourly_charging_data_grouped_battery_summary_Potential_191, add_actual_lines=False, add_potential_lines=True, ylim=3500)
+plot_saving_ev_vs_distance(all_hourly_charging_data_grouped_battery_summary_Actual_191, add_actual_lines=True, add_potential_lines=False, ylim=3500, text_size=18)
+plot_saving_ev_vs_distance(all_hourly_charging_data_grouped_battery_summary_Potential_191, add_actual_lines=False, add_potential_lines=False, ylim=5500, text_size=18)
+(all_hourly_charging_data_grouped_battery_summary_Potential_191["Saving_TOU"]/all_hourly_charging_data_grouped_battery_summary_Potential_191["average_smart_years"]).mean()
+(all_hourly_charging_data_grouped_battery_summary_Actual_191["Saving_TOU"]/all_hourly_charging_data_grouped_battery_summary_Potential_191["average_smart_years"]).mean()

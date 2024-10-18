@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-from parking import xlsx_read, plotting, draw_RT, draw_util, draw_util_rt, draw_profile, demand_response, draw_parking, draw_charging
+from parking import xlsx_read, plotting, draw_RT, draw_util, draw_util_rt, draw_profile, demand_response, draw_parking, draw_charging, draw_combined, draw_multilevel_pie, draw_rose_chart_parking, draw_rose_chart_charging
 # %% Reading Files
 GHG_data = pd.read_csv("CISO.csv")
 GHG_dict = dict(enumerate(GHG_data.iloc[:, 0]))
@@ -29,6 +29,7 @@ for vehicle, hours in merged_dict.items():
 
 # Create DataFrame
 flatten_veh_data = pd.DataFrame(flattened_data)
+final_dataframes = pd.read_csv("data.csv")
 
 # %%
 charging_cost_NR = tou_prices
@@ -147,12 +148,19 @@ plt.show()
 draw_parking(final_dataframes)
 draw_charging(final_dataframes)
 draw_combined(final_dataframes)
+draw_multilevel_pie(final_dataframes)
+draw_rose_chart_parking(final_dataframes, text_size=18)
+draw_rose_chart_charging(final_dataframes, text_size=18)
+# # %%
+# # Plot the grid of stacked bar charts
+# dr_plot(result_RTH_DR1, result_RTHW_DR1)
+# dr_plot(result_RTH_DR10, result_RTHW_DR10)
+# dr_plot(result_RTH_DR20, result_RTHW_DR20)
+#
+# dr_plot(result_TOUH_DR1, result_TOUHW_DR1)
+# dr_plot(result_TOUH_DR10, result_TOUHW_DR10)
+# dr_plot(result_TOUH_DR20, result_TOUHW_DR20)
 # %%
-# Plot the grid of stacked bar charts
-dr_plot(result_RTH_DR1, result_RTHW_DR1)
-dr_plot(result_RTH_DR10, result_RTHW_DR10)
-dr_plot(result_RTH_DR20, result_RTHW_DR20)
 
-dr_plot(result_TOUH_DR1, result_TOUHW_DR1)
-dr_plot(result_TOUH_DR10, result_TOUHW_DR10)
-dr_plot(result_TOUH_DR20, result_TOUHW_DR20)
+
+
