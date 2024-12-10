@@ -697,10 +697,10 @@ plot_benefit_vs_degradation(RT_rates_total, num_vehicles=50, baseline_cost_scena
 plot_benefit_vs_degradation(RT_rates_total, num_vehicles=50, baseline_cost_scenario='last',title="RTvsEV", lb=3000, ub=11500, title_size=12, axis_text_size=12)
 
 # %%
-plot_benefit_by_scenario(voilin_input_data, scenario_filter='Actual', charging_speed=19, fz=18)
-plot_benefit_by_scenario(voilin_input_data, scenario_filter='Potential', charging_speed=19, fz=18)
+test1 = plot_benefit_by_scenario(voilin_input_data, scenario_filter='Actual', charging_speed=19, fz=18)
+test2 = plot_benefit_by_scenario(voilin_input_data, scenario_filter='Potential', charging_speed=19, fz=18)
 
 # %%
 
 plot_box_by_tariff(CDF_N_grouped_g, CDF_P_grouped_g, figtitle="Annual CO$_2$ Emissions Reduction per\nVehicle from V1G and V2G Participation (tonne)",  fz=16, show_dollar=False)
-plot_box_by_tariff(CDF_N_grouped_c, CDF_P_grouped_c, figtitle="Annual Financial Savings per Vehicle\nfrom V1G and V2G Participation ($)",  fz=16, show_dollar=True)
+plot_box_by_tariff(CDF_N_grouped_c, CDF_P_grouped_c, figtitle="Annual Gross Revenue from Electricity\nSales per Vehicle V1G and V2G Participation ($)",  fz=16, show_dollar=True)

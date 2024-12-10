@@ -35,10 +35,13 @@ def real_time_data_parking(list):
     trip_data['start_time_local'] = pd.to_datetime(trip_data['start_time_local'])
     trip_data['end_time_local'] = pd.to_datetime(trip_data["end_time_local"])
     trip_data["next_departure_time"] = pd.to_datetime(trip_data["next_departure_time"])
-
+    trip_data['Date'] = pd.to_datetime(trip_data[['year', 'month', 'day']])
+    trip_data['Is_Weekend'] = trip_data['Date'].dt.dayofweek >= 5
     charging_data = charging_data[charging_data["vehicle_name"].isin(list)]
 
     charging_data["end_time_local"] = pd.to_datetime(charging_data['end_time_local'])
+    charging_data['Date'] = pd.to_datetime(charging_data[['year', 'month', 'day']])
+    charging_data['Is_Weekend'] = charging_data['Date'].dt.dayofweek >= 5
     trip_data = trip_data[trip_data["vehicle_name"].isin(list)]
 
     def calculate_hour_of_year_charging(df):
@@ -71,7 +74,7 @@ def real_time_data_parking(list):
             bat_cap = row['bat_cap']
             charge_type = row['charge_type']
             location = row['destination_label']
-
+            weekday = row['Is_Weekend']
             # Check if the vehicle name already exists in the dictionary
             if vehicle_name not in ch_dict:
                 ch_dict[vehicle_name] = {}  # Initialize an empty dictionary for the vehicle
@@ -88,7 +91,7 @@ def real_time_data_parking(list):
                     ch_dict[vehicle_name][hour]['bat_cap'] = bat_cap
                     ch_dict[vehicle_name][hour]['charge_type'] = charge_type
                     ch_dict[vehicle_name][hour]['location'] = location
-
+                    ch_dict[vehicle_name][hour]['weekday'] = weekday
                 # Otherwise, add a new entry for the hour
                 else:
                     ch_dict[vehicle_name][hour] = {
@@ -100,7 +103,7 @@ def real_time_data_parking(list):
                         'bat_cap': bat_cap,
                         'charge_type': charge_type,
                         'location': location,
-
+                        'weekday': weekday,
                     }
 
         return ch_dict
@@ -110,7 +113,7 @@ def real_time_data_parking(list):
             max_hour = max(hours_data.keys(), default=0)
             for hour in range(max_hour + 1):
                 if hour not in hours_data:
-                    df[vehicle_name][hour] = {'charging_indicator': 0, 'soc_init': 0, 'soc_need': 0, 'end_time': 0, 'soc_end': 0, 'charge_type': "None", 'location': "None", 'bat_cap': 0}
+                    df[vehicle_name][hour] = {'charging_indicator': 0, 'soc_init': 0, 'soc_need': 0, 'end_time': 0, 'soc_end': 0, 'charge_type': "None", 'location': "None", 'weekday': "None", 'bat_cap': 0}
 
         return df
 

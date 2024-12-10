@@ -4705,6 +4705,7 @@ def plot_benefit_by_scenario(df, scenario_filter='Actual', charging_speed=19, fz
     plt.tight_layout()
     plt.savefig(f'plot.png', bbox_inches='tight', dpi=300)
     plt.show()
+    return filtered_df
 
 def calculate_ghg_difference(df1, df2):
     # Calculate total GHG for CDF_N and costs_A_TOU_rate_hourly_in

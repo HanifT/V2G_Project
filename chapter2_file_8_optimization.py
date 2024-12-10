@@ -1,7 +1,7 @@
 import pandas as pd
 import json
 from pyomo.environ import *
-from price_factor import tou_price, ev_rate_price
+from price_factor import get_utility_prices
 from chapter2_file_7_realtime import real_time_data
 from chapter2_file_17_parking_charging import real_time_data_parking
 import os
@@ -12,48 +12,53 @@ logging.getLogger('pyomo.core').setLevel(logging.ERROR)
 GHG_data = pd.read_csv("CISO.csv")
 GHG_dict = dict(enumerate(GHG_data.iloc[:, 0]))
 
-vehicle_list = ["P_1087", "P_1091", "P_1092", "P_1093", "P_1094", "P_1098", "P_1100", 'P_1109', 'P_1111', "P_1112", "P_1123", "P_1125",
-                "P_1125a", "P_1127", 'P_1131', 'P_1132', 'P_1135', 'P_1137', "P_1141", "P_1143", 'P_1217', 'P_1253', 'P_1257', 'P_1260',
-                'P_1271', 'P_1272', 'P_1279', 'P_1280', 'P_1281', 'P_1285', 'P_1288', 'P_1294', 'P_1295', 'P_1296', 'P_1304', 'P_1307',
-                "P_1357", "P_1367", 'P_1375', 'P_1353', 'P_1368', 'P_1371', "P_1376", 'P_1393', "P_1414", 'P_1419', 'P_1421', 'P_1422', 'P_1424', 'P_1427']
-
-
-# real_time_data(vehicle_list)
-real_time_data_parking(vehicle_list)
-# with open("charging_dict.json", "r") as json_file:
-#     charging_dict = json.load(json_file)
+# vehicle_list = ["P_1087", "P_1091", "P_1092", "P_1093", "P_1094", "P_1098", "P_1100", 'P_1109', 'P_1111', "P_1112", "P_1123", "P_1125",
+#                 "P_1125a", "P_1127", 'P_1131', 'P_1132', 'P_1135', 'P_1137', "P_1141", "P_1143", 'P_1217', 'P_1253', 'P_1257', 'P_1260',
+#                 'P_1271', 'P_1272', 'P_1279', 'P_1280', 'P_1281', 'P_1285', 'P_1288', 'P_1294', 'P_1295', 'P_1296', 'P_1304', 'P_1307',
+#                 "P_1357", "P_1367", 'P_1375', 'P_1353', 'P_1368', 'P_1371', "P_1376", 'P_1393', "P_1414", 'P_1419', 'P_1421', 'P_1422', 'P_1424', 'P_1427']
 #
-# with open("trip_dict.json", "r") as json_file:
-#     trip_dict = json.load(json_file)
-#
-# with open("merged_dict.json", "r") as json_file:
-#     merged_dict = json.load(json_file)
+vehicle_list = ["P_1087"]
+real_time_data(vehicle_list)
+# real_time_data_parking(vehicle_list)
 
-with open("merged_dict_parking.json", "r") as json_file:
+
+with open("merged_dict.json", "r") as json_file:
     merged_dict = json.load(json_file)
 
-with open("combined_price_PGE_average.json", "r") as json_file:
-    combined_price_PGE_average = json.load(json_file)
+# with open("merged_dict_parking.json", "r") as json_file:
+#     merged_dict = json.load(json_file)
 
+# with open("combined_price_PGE_average.json", "r") as json_file:
+#     combined_price_PGE_average = json.load(json_file)
+#
+# with open("combined_price_PGE_average.json", "r") as json_file:
+#     combined_price_SCE_average = json.load(json_file)
+#
+# with open("combined_price_PGE_average.json", "r") as json_file:
+#     combined_price_SDGE_average = json.load(json_file)
 
-tou_prices = tou_price(550, 450, 430, 400)
-ev_rate_prices = ev_rate_price(310, 510, 620, 310, 480, 490)
 # %%
+rt_rate_pge, tou_prices_pge, ev_rate_prices_pge, commercial_prices_pge = get_utility_prices("PGE")
+rt_rate_sce, tou_prices_sce, ev_rate_prices_sce, commercial_prices_sce = get_utility_prices("SCE")
+rt_rate_sdge, tou_prices_sdge, ev_rate_prices_sdge, commercial_prices_sdge = get_utility_prices("SDGE")
+# rt_rate_ladwp, tou_prices_ladwp, ev_rate_prices_ladwp, commercial_prices_ladwp = get_utility_prices("LADWP")
 
-# Convert keys to integers
-RT_PGE = {int(key): value for key, value in combined_price_PGE_average.items()}
-tou_prices = {int(key): value for key, value in tou_prices.items()}
-ev_rate_prices = {int(key): value for key, value in ev_rate_prices.items()}
 
 merged_dict = {outer_key: {int(inner_key): inner_value for inner_key, inner_value in outer_value.items()} for outer_key, outer_value in merged_dict.items()}
 max_index = max(max(map(int, inner_dict.keys())) for inner_dict in merged_dict.values())
 # %%
 
 
-def create_model_and_export_excel(charging_speed, ghg_cost_per_tonne, x_chr_domain, locs, price, price_name):
+def create_model_and_export_excel(charging_speed, ghg_cost_per_tonne, x_chr_domain, locs, price, commercial_prices, price_name):
 
     # Create a Pyomo model
     m = ConcreteModel()
+    # price = rt_rate_pge.copy()
+    # commercial_prices = commercial_prices_pge.copy()
+    # locs = "Home"
+    # charging_speed = 6.6
+    # x_chr_domain = Reals
+    # ghg_cost_per_tonne = 0
     ################################################################################################################
     ################################################################################################################
     # Define sets
@@ -65,7 +70,11 @@ def create_model_and_export_excel(charging_speed, ghg_cost_per_tonne, x_chr_doma
     # Parameters
 
     # Parameters using merged_dict
-    m.CRTP = Param(m.T, initialize={t: price[t] for t in m.T if t in price})
+    filtered_price = {t: price[t] for t in m.T if t in price}
+    filtered_commercial_prices = {t: commercial_prices[t] for t in m.T if t in commercial_prices}  # Commercial
+    m.CRTP = Param(m.T, initialize=filtered_price, default=420)  # Default to 420 for missing values
+    m.CRTP_Commercial = Param(m.T, initialize=filtered_commercial_prices, default=420)  # Default to 420
+
     # Parameters using merged_dict
 
     m.GHG = Param(m.T, initialize={t: GHG_dict[t] for t in m.T if t in GHG_dict})
@@ -110,6 +119,21 @@ def create_model_and_export_excel(charging_speed, ghg_cost_per_tonne, x_chr_doma
         "DC_FAST_REDUCED": 70,  # New entry for reduced speed
         "None": 0
     }
+
+    # Define the effective price parameter based on location
+    def effective_price_rule(m,v, t):
+        if t not in m.T:
+            # print(f"Time index {t} not in m.T. Returning default value 420.")
+            return 420
+        if m.location[v, t] == "Work":
+            return m.CRTP_Commercial[t] if t in m.CRTP_Commercial else 420
+        elif m.location[v, t] == "Home":
+            return m.CRTP[t] if t in m.CRTP else 420
+        else:
+            return 420
+
+    m.CRTP_Effective = Param(m.V, m.T, initialize=effective_price_rule, default=420)
+
     ################################################################################################################
     ################################################################################################################
     # Decision variables
@@ -126,17 +150,9 @@ def create_model_and_export_excel(charging_speed, ghg_cost_per_tonne, x_chr_doma
 
     degradation_parameters = {
         # Battery capacity group: (slope, intercept)
-        60: (2.15e-02, 0),
-        65: (2.15e-02, 0),
-        66: (2.15e-02, 0),
-        70: (2.15e-02, 0),
-        75: (2.15e-02, 0),
-        80: (2.15e-02, 0),
-        85: (2.15e-02, 0),
-        90: (2.15e-02, 0),
-        95: (2.15e-02, 0),
-        100: (2.15e-02, 0)
-        # Add more groups as needed
+        60: (2.15e-02, 0), 65: (2.15e-02, 0), 66: (2.15e-02, 0), 70: (2.15e-02, 0),
+        75: (2.15e-02, 0), 80: (2.15e-02, 0), 85: (2.15e-02, 0), 90: (2.15e-02, 0),
+        95: (2.15e-02, 0), 100: (2.15e-02, 0)
     }
 
     # Define functions to get slope and intercept based on battery capacity
@@ -292,9 +308,10 @@ def create_model_and_export_excel(charging_speed, ghg_cost_per_tonne, x_chr_doma
     #                              sum(((m.GHG[t] * (m.X_CHR[v, t])) / 1000) * m.ghg_cost for v in m.V for t in m.T) +
     #                              sum(m.batt_deg_cost[v, t] for v in m.V for t in m.T),
     #                         sense=minimize)
-    m.Objective = Objective(expr=sum((m.CRTP[t] * m.X_CHR[v, t]) / 1000 for v in m.V for t in m.T) +
-                                 sum(((m.GHG[t] * (m.X_CHR[v, t])) / 1000) * m.ghg_cost for v in m.V for t in m.T) +
-                                 sum(m.batt_deg_cost[v, t] for v in m.V for t in m.T),
+    m.Objective = Objective(expr=
+                            sum((m.CRTP_Effective[v, t] * m.X_CHR[v, t]) / 1000 for v in m.V for t in m.T) +
+                            # sum(((m.GHG[t] * (m.X_CHR[v, t])) / 1000) * m.ghg_cost for v in m.V for t in m.T) +
+                            sum(m.batt_deg_cost[v, t] for v in m.V for t in m.T),
                             sense=minimize)
     ################################################################################################################
     ################################################################################################################
@@ -413,17 +430,20 @@ def create_model_and_export_excel(charging_speed, ghg_cost_per_tonne, x_chr_doma
 
 # %% Run the code for smart charging
 # Define the charging speeds and GHG costs
-# x_chr_domain = [NonNegativeReals, Reals]
+
 x_chr_domain = [Reals]
-
-# x_chr_domain = [Reals]
 charging_speeds = [6.6, 12, 19]
-ghg_costs = [0, 50/1000, 191/1000]
-# ghg_costs = [50/1000]
+ghg_costs = [0]
 locations = [["Home"], ["Home", "Work"]]
-
-prices = {"TOU": tou_prices, "EV_Rate": ev_rate_prices, "RT_Rate": RT_PGE}
-
+prices = {"TOU_pge": tou_prices_pge, "EV_Rate_pge": ev_rate_prices_pge, "RT_Rate_pge": rt_rate_pge,
+          "TOU_sce": tou_prices_sce, "EV_Rate_sce": ev_rate_prices_sce, "RT_Rate_sce": rt_rate_sce,
+          "TOU_sdge": tou_prices_sdge, "EV_Rate_sdge": ev_rate_prices_sdge, "RT_Rate_sdge": rt_rate_sdge,
+          # "TOU_ladwp": tou_prices_ladwp, "EV_Rate_ladwp": ev_rate_prices_ladwp, "RT_Rate_ladwp": rt_rate_ladwp,
+          }
+prices_commercial = {"commercial_pge": commercial_prices_pge, "commercial_sce": commercial_prices_sce,
+                     "commercial_sdge": commercial_prices_sdge,
+                     # "commercial_ladwp": commercial_prices_ladwp
+                    }
 
 # Iterate over all combinations
 for domain in x_chr_domain:
@@ -431,7 +451,38 @@ for domain in x_chr_domain:
         for cost in ghg_costs:
             for loc in locations:
                 for name, ep in prices.items():
+                    # Identify the region based on the price name
+                    if "pge" in name.lower():
+                        commercial_price = prices_commercial.get("commercial_pge")
+                    elif "sce" in name.lower():
+                        commercial_price = prices_commercial.get("commercial_sce")
+                    elif "sdge" in name.lower():
+                        commercial_price = prices_commercial.get("commercial_sdge")
+                    # elif "ladwp" in name.lower():
+                    #     commercial_price = prices_commercial.get("commercial_ladwp")
+                    else:
+                        if isinstance(ep, dict):
+                            commercial_price = {t: 420 for t in ep.keys()}  # Default price of 420
+                        else:
+                            raise TypeError(f"`ep` must be a dictionary for default commercial price. Found {type(ep)}")
+
+                    # Validate price formats
+                    if not isinstance(ep, dict):
+                        raise TypeError(f"Price input `ep` must be a dictionary. Found type: {type(ep)} for {name}")
+                    if not isinstance(commercial_price, dict):
+                        raise TypeError(f"Commercial price input must be a dictionary. Found type: {type(commercial_price)}")
+
                     # Call the function with correct arguments
-                    excel_file, json_file = create_model_and_export_excel(charging_speed=speed, ghg_cost_per_tonne=cost, x_chr_domain=domain, locs=loc, price=ep, price_name=name)
+                    excel_file, json_file = create_model_and_export_excel(
+                        charging_speed=speed,
+                        ghg_cost_per_tonne=cost,
+                        x_chr_domain=domain,
+                        locs=loc,
+                        price=ep,  # The selected price (TOU, EV Rate, or RT)
+                        commercial_prices=commercial_price,  # Pass the Commercial Rate
+                        price_name=name,
+                    )
+
                     # Print confirmation message
                     print(f"File '{excel_file}' has been created with charging speed {speed} kW and GHG cost ${cost} per tonne, V2G at {loc}_{name}.")
+

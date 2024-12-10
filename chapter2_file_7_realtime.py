@@ -3,11 +3,8 @@ import json
 from parking import charging_dataframe
 # %%
 
+
 def real_time_data(list):
-    # list = ["P_1087", "P_1091", "P_1092", "P_1093", "P_1094", "P_1098", "P_1100", 'P_1109', 'P_1111', "P_1112", "P_1123", "P_1125",
-    #                 "P_1125a", "P_1127", 'P_1131', 'P_1132', 'P_1135', 'P_1137', "P_1141", "P_1143", 'P_1217', 'P_1253', 'P_1257', 'P_1260',
-    #                 'P_1271', 'P_1272', 'P_1279', 'P_1280', 'P_1281', 'P_1285', 'P_1288', 'P_1294', 'P_1295', 'P_1296', 'P_1304', 'P_1307',
-    #                 "P_1357", "P_1367", 'P_1375', 'P_1353', 'P_1368', 'P_1371', "P_1376", 'P_1393', "P_1414", 'P_1419', 'P_1421', 'P_1422', 'P_1424', 'P_1427']
 
     trip_data = pd.read_csv("data.csv")
     final_dataframes_charging = charging_dataframe(trip_data, 0)
@@ -36,10 +33,13 @@ def real_time_data(list):
     trip_data['start_time_local'] = pd.to_datetime(trip_data['start_time_local'])
     trip_data['end_time_local'] = pd.to_datetime(trip_data["end_time_local"])
     trip_data["next_departure_time"] = pd.to_datetime(trip_data["next_departure_time"])
-
+    trip_data['Date'] = pd.to_datetime(trip_data[['year', 'month', 'day']])
+    trip_data['Is_Weekend'] = trip_data['Date'].dt.dayofweek >= 5
     charging_data = charging_data[charging_data["vehicle_name"].isin(list)]
 
     charging_data["end_time_local"] = pd.to_datetime(charging_data['end_time_local'])
+    charging_data['Date'] = pd.to_datetime(charging_data[['year', 'month', 'day']])
+    charging_data['Is_Weekend'] = charging_data['Date'].dt.dayofweek >= 5
     # charging_data["next_departure_time"] = pd.to_datetime(charging_data["next_departure_time"]).dt.tz_convert('America/Los_Angeles')
     trip_data = trip_data[trip_data["vehicle_name"].isin(list)]
 
@@ -75,6 +75,7 @@ def real_time_data(list):
             bat_cap = row['bat_cap']
             charge_type = row['charge_type']
             location = row['destination_label']
+            weekday = row['Is_Weekend']
 
             # Check if the vehicle name already exists in the dictionary
             if vehicle_name not in ch_dict:
@@ -92,6 +93,7 @@ def real_time_data(list):
                     ch_dict[vehicle_name][hour]['bat_cap'] = bat_cap
                     ch_dict[vehicle_name][hour]['charge_type'] = charge_type
                     ch_dict[vehicle_name][hour]['location'] = location
+                    ch_dict[vehicle_name][hour]['weekday'] = weekday
 
                 # Otherwise, add a new entry for the hour
                 else:
@@ -104,6 +106,7 @@ def real_time_data(list):
                         'bat_cap': bat_cap,
                         'charge_type': charge_type,
                         'location': location,
+                        'weekday': weekday,
 
                     }
 
@@ -114,7 +117,7 @@ def real_time_data(list):
             max_hour = max(hours_data.keys(), default=0)
             for hour in range(max_hour + 1):
                 if hour not in hours_data:
-                    df[vehicle_name][hour] = {'charging_indicator': 0, 'soc_init': 0, 'soc_need': 0, 'end_time': 0, 'soc_end': 0, 'charge_type': "None", 'location': "None", 'bat_cap': 0}
+                    df[vehicle_name][hour] = {'charging_indicator': 0, 'soc_init': 0, 'soc_need': 0, 'end_time': 0, 'soc_end': 0, 'charge_type': "None", 'location': "None", 'weekday': "None", 'bat_cap': 0}
 
         return df
 
@@ -222,28 +225,4 @@ def real_time_data(list):
     with open("merged_dict.json", "w") as json_file:
         json.dump(merged_dict, json_file)
 
-# %%
-
-# with open("merged_dict.json", "r") as json_file:
-#     merged_dict = json.load(json_file)
-#
-#
-# for key, value in merged_dict.items():
-#     for subkey, subvalue in value.items():
-#         print(f"{key} - {subkey}: {subvalue}")
-#
-# # Calculate the sum of soc_Diff values in P_1087
-# total_soc_diff = 0
-# missing_soc_diff_keys = []
-#
-# # Calculate the sum of soc_diff across all nested dictionaries
-# for inner_dict in merged_dict.values():
-#     for v in inner_dict.values():
-#         if 'soc_diff' in v:
-#             total_soc_diff += v['soc_diff']
-#         else:
-#             missing_soc_diff_keys.append(v)  # Track dictionaries missing 'soc_diff ' key
-#
-# print("Total sum of soc_diff:", total_soc_diff)
-# charging_data["SOC_Diff"].sum()
 
