@@ -77,30 +77,31 @@ utility_data = {
         },
 
     },
-    "LADWP": {
+    "SMUD": {
         "TOU": {
-            "weekday_prices": {'summer': {'peak': 310, 'mid_peak': 250, 'off_peak': 220}, 'winter': {'peak': 229, 'mid_peak': 229, 'off_peak': 206}},
-            "weekend_prices": {'summer': {'peak': 310, 'mid_peak': 250, 'off_peak': 220}, 'winter': {'peak': 229, 'mid_peak': 229, 'off_peak': 206}},
-            "weekday_times": {'summer': {'peak': [(13, 17)], 'mid_peak': [(10, 13), (17, 20)]}, 'winter': {'peak': [(13, 17)], 'mid_peak': [(10, 13), (17, 20)]}},
-            "weekend_times": {'summer': {'peak': [(26, 26)], 'mid_peak': [(26, 26)]}, 'winter': {'peak': [(26, 26)], 'mid_peak': [(26, 26)]}},
+            "weekday_prices": {'summer': {'peak': 346, 'mid_peak': 196, 'off_peak': 142}, 'winter': {'peak': 163, 'mid_peak': 118, 'off_peak': 118}},
+            "weekend_prices": {'summer': {'peak': 346, 'mid_peak': 196, 'off_peak': 142}, 'winter': {'peak': 163, 'mid_peak': 118, 'off_peak': 118}},
+            "weekday_times": {'summer': {'peak': [(17, 20)], 'mid_peak': [(12, 17), (20, 24)]}, 'winter': {'peak': [(17, 20)], 'mid_peak': [(26, 26)]}},
+            "weekend_times": {'summer': {'peak': [(17, 20)], 'mid_peak': [(12, 17), (20, 24)]}, 'winter': {'peak': [(17, 20)], 'mid_peak': [(26, 26)]}},
             "month_ranges": {'summer': (6, 9), 'winter': (10, 5)}
         },
         "EVR": {
-            "weekday_prices": {'summer': {'peak': 285, 'mid_peak': 225, 'off_peak': 195}, 'winter': {'peak': 204, 'mid_peak': 204, 'off_peak': 181}},
-            "weekend_prices": {'summer': {'peak': 285, 'mid_peak': 225, 'off_peak': 195}, 'winter': {'peak': 204, 'mid_peak': 204, 'off_peak': 181}},
-            "weekday_times": {'summer': {'peak': [(13, 17)], 'mid_peak': [(10, 13), (17, 20)]}, 'winter': {'peak': [(13, 17)], 'mid_peak': [(10, 13), (17, 20)]}},
-            "weekend_times": {'summer': {'peak': [(26, 26)], 'mid_peak': [(26, 26)]}, 'winter': {'peak': [(26, 26)], 'mid_peak': [(26, 26)]}},
+            "weekday_prices": {'summer': {'peak': 346, 'mid_peak': 196, 'off_peak': 142}, 'winter': {'peak': 163, 'mid_peak': 118, 'off_peak': 118}},
+            "weekend_prices": {'summer': {'peak': 346, 'mid_peak': 196, 'off_peak': 142}, 'winter': {'peak': 163, 'mid_peak': 118, 'off_peak': 118}},
+            "weekday_times": {'summer': {'peak': [(17, 20)], 'mid_peak': [(12, 17), (20, 24)]}, 'winter': {'peak': [(17, 20)], 'mid_peak': [(26, 26)]}},
+            "weekend_times": {'summer': {'peak': [(17, 20)], 'mid_peak': [(12, 17), (20, 24)]}, 'winter': {'peak': [(17, 20)], 'mid_peak': [(26, 26)]}},
             "month_ranges": {'summer': (6, 9), 'winter': (10, 5)}
         },
         "Commercial": {
-            "weekday_prices": {'summer': {'peak': 59, 'mid_peak': 53, 'off_peak': 33}, 'winter': {'peak': 54, 'mid_peak': 54, 'off_peak': 37}},
-            "weekend_prices": {'summer': {'peak': 59, 'mid_peak': 53, 'off_peak': 33}, 'winter': {'peak': 54, 'mid_peak': 54, 'off_peak': 37}},
-            "weekday_times": {'summer': {'peak': [(13, 17)], 'mid_peak': [(10, 13), (17, 20)]}, 'winter': {'peak': [(13, 17)], 'mid_peak': [(10, 13), (17, 20)]}},
-            "weekend_times": {'summer': {'peak': [(26, 26)], 'mid_peak': [(26, 26)]}, 'winter': {'peak': [(26, 26)], 'mid_peak': [(26, 26)]}},
+            "weekday_prices": {'summer': {'peak': 210, 'mid_peak': 107, 'off_peak': 107}, 'winter': {'peak': 136, 'mid_peak': 111, 'off_peak': 71}},
+            "weekend_prices": {'summer': {'peak': 210, 'mid_peak': 107, 'off_peak': 107}, 'winter': {'peak': 136, 'mid_peak': 111, 'off_peak': 71}},
+            "weekday_times": {'summer': {'peak': [(16, 21)], 'mid_peak': [(26, 26)]}, 'winter': {'peak': [(16, 21)], 'mid_peak': [(9, 16)]}},
+            "weekend_times": {'summer': {'peak': [(26, 26)], 'mid_peak': [(26, 26)]}, 'winter': {'peak': [(26, 26)], 'mid_peak': [(9, 16)]}},
             "month_ranges": {'summer': (6, 9), 'winter': (10, 5)}
         }
     }
 }
+#
 #
 # # %% Define the directory where your CSV files are located
 # folder_path = '/Users/haniftayarani/V2G_data/real_time_price'
@@ -132,20 +133,20 @@ utility_data = {
 #
 # sdge_values = ['SDG1']
 #
-# ladwp_values = ["LADWP"]
+# smud_values = ["SMD"]
 #
 # # Filter rows where the first four letters of 'NODE_ID' values are in the list
 # combined_price_PGE = combined_price[combined_price['NODE_ID'].str[:4].isin(pge_values)]
 # combined_price_SCE = combined_price[combined_price['NODE_ID'].str[:4].isin(sce_values)]
 # combined_price_SDGE = combined_price[combined_price['NODE_ID'].str[:4].isin(sdge_values)]
-# combined_price_LADWP = combined_price[combined_price['NODE_ID'].str[:5].isin(ladwp_values)]
+# combined_price_SMUD = combined_price[combined_price['NODE_ID'].str[:3].isin(smud_values)]
 #
 #
 # lengths_dict = {
 #     'PGE': len(combined_price_PGE),
 #     'SCE': len(combined_price_SCE),
 #     'SDGE': len(combined_price_SDGE),
-#     'LADWP': len(combined_price_LADWP)
+#     'SMUD': len(combined_price_SMUD)
 #
 # }
 # rt_dict = combined_price_PGE.to_dict()
@@ -183,8 +184,8 @@ utility_data = {
 # combined_demand_SDGE = combined_demand[combined_demand["TAC_AREA_NAME"] == "SDGE-TAC"].reset_index(drop=True)
 # combined_demand_SDGE = combined_demand_SDGE.drop_duplicates(subset=["INTERVALSTARTTIME_GMT"])
 #
-# combined_demand_LADWP = combined_demand[combined_demand["TAC_AREA_NAME"] == "LADWP"].reset_index(drop=True)
-# combined_demand_LADWP = combined_demand_LADWP.drop_duplicates(subset=["INTERVALSTARTTIME_GMT"])
+# combined_demand_SMUD = combined_demand[combined_demand["TAC_AREA_NAME"] == "BANCSMUD"].reset_index(drop=True)
+# combined_demand_SMUD = combined_demand_SMUD.drop_duplicates(subset=["INTERVALSTARTTIME_GMT"])
 #
 #
 # # %%
@@ -275,16 +276,20 @@ utility_data = {
 # combined_price_SDGE_average = pd.concat([combined_price_SDGE_average, combined_price_SDGE_average, combined_price_SDGE_average], axis=0).reset_index(drop=True).to_dict()
 #
 #
-# rt_pricer = RTPricer(combined_demand_LADWP, combined_price_LADWP, 212, 270, 17, 20, "LADWP")
-# combined_price_LADWP_new, adj_factor_LADWP = rt_pricer.calculate_rt_price()
+# rt_pricer = RTPricer(combined_demand_SMUD, combined_price_SMUD, 212, 270, 17, 20, "SMUD")
+# combined_price_SMUD_new, adj_factor_SMUD = rt_pricer.calculate_rt_price()
 # # rt_pricer.plot_histogram()
-# combined_price_LADWP_new["INTERVALSTARTTIME_PST"] = pd.to_datetime(combined_price_LADWP_new["INTERVALSTARTTIME_GMT"]).dt.tz_convert('America/Los_Angeles')
-# combined_price_LADWP_new['hour_of_year_start'] = combined_price_LADWP_new['INTERVALSTARTTIME_PST'].apply(lambda x: ((x.dayofyear - 1) * 24 + x.hour))
-# combined_price_LADWP_new = combined_price_LADWP_new.sort_values(by="INTERVALSTARTTIME_PST").reset_index(drop=True)
-# combined_price_LADWP_average = combined_price_LADWP_new[["hour_of_year_start", "rt_price"]]
-# combined_price_LADWP_average = combined_price_LADWP_average.groupby("hour_of_year_start")["rt_price"].mean()
-# combined_price_LADWP_average = pd.concat([combined_price_LADWP_average, combined_price_LADWP_average, combined_price_LADWP_average], axis=0).reset_index(drop=True).to_dict()
+# combined_price_SMUD_new["INTERVALSTARTTIME_PST"] = pd.to_datetime(combined_price_SMUD_new["INTERVALSTARTTIME_GMT"]).dt.tz_convert('America/Los_Angeles')
+# combined_price_SMUD_new['hour_of_year_start'] = combined_price_SMUD_new['INTERVALSTARTTIME_PST'].apply(lambda x: ((x.dayofyear - 1) * 24 + x.hour))
+# combined_price_SMUD_new = combined_price_SMUD_new.sort_values(by="INTERVALSTARTTIME_PST").reset_index(drop=True)
+# combined_price_SMUD_average = combined_price_SMUD_new[["hour_of_year_start", "rt_price"]]
+# combined_price_SMUD_average = combined_price_SMUD_average.groupby("hour_of_year_start")["rt_price"].mean()
+# combined_price_SMUD_average = pd.concat([combined_price_SMUD_average, combined_price_SMUD_average, combined_price_SMUD_average], axis=0).reset_index(drop=True).to_dict()
 #
+# draw_RT(combined_price_PGE_average)
+# draw_RT(combined_price_SCE_average)
+# draw_RT(combined_price_SDGE_average)
+# draw_RT(combined_price_SMUD_average)
 #
 # # %%
 # with open("combined_price_PGE_average.json", "w") as json_file:
@@ -296,8 +301,8 @@ utility_data = {
 # with open("combined_price_SDGE_average.json", "w") as json_file:
 #     json.dump(combined_price_SDGE_average, json_file)
 #
-# with open("combined_price_LADWP_average.json", "w") as json_file:
-#     json.dump(combined_price_LADWP_average, json_file)
+# with open("combined_price_SMUD_average.json", "w") as json_file:
+#     json.dump(combined_price_SMUD_average, json_file)
 
 
 # %% TOU signal
