@@ -17,8 +17,8 @@ GHG_dict = dict(enumerate(GHG_data.iloc[:, 0]))
 #                 'P_1271', 'P_1272', 'P_1279', 'P_1280', 'P_1281', 'P_1285', 'P_1288', 'P_1294', 'P_1295', 'P_1296', 'P_1304', 'P_1307',
 #                 "P_1357", "P_1367", 'P_1375', 'P_1353', 'P_1368', 'P_1371', "P_1376", 'P_1393', "P_1414", 'P_1419', 'P_1421', 'P_1422', 'P_1424', 'P_1427']
 #
-vehicle_list = ["P_1087"]
-real_time_data(vehicle_list)
+#
+# real_time_data(vehicle_list)
 # real_time_data_parking(vehicle_list)
 
 
@@ -28,20 +28,11 @@ with open("merged_dict.json", "r") as json_file:
 # with open("merged_dict_parking.json", "r") as json_file:
 #     merged_dict = json.load(json_file)
 
-# with open("combined_price_PGE_average.json", "r") as json_file:
-#     combined_price_PGE_average = json.load(json_file)
-#
-# with open("combined_price_PGE_average.json", "r") as json_file:
-#     combined_price_SCE_average = json.load(json_file)
-#
-# with open("combined_price_PGE_average.json", "r") as json_file:
-#     combined_price_SDGE_average = json.load(json_file)
-
 # %%
 rt_rate_pge, tou_prices_pge, ev_rate_prices_pge, commercial_prices_pge = get_utility_prices("PGE")
 rt_rate_sce, tou_prices_sce, ev_rate_prices_sce, commercial_prices_sce = get_utility_prices("SCE")
 rt_rate_sdge, tou_prices_sdge, ev_rate_prices_sdge, commercial_prices_sdge = get_utility_prices("SDGE")
-# rt_rate_ladwp, tou_prices_ladwp, ev_rate_prices_ladwp, commercial_prices_ladwp = get_utility_prices("LADWP")
+rt_rate_smud, tou_prices_smud, ev_rate_prices_smud, commercial_prices_smud = get_utility_prices("SMUD")
 
 
 merged_dict = {outer_key: {int(inner_key): inner_value for inner_key, inner_value in outer_value.items()} for outer_key, outer_value in merged_dict.items()}
@@ -53,12 +44,6 @@ def create_model_and_export_excel(charging_speed, ghg_cost_per_tonne, x_chr_doma
 
     # Create a Pyomo model
     m = ConcreteModel()
-    # price = rt_rate_pge.copy()
-    # commercial_prices = commercial_prices_pge.copy()
-    # locs = "Home"
-    # charging_speed = 6.6
-    # x_chr_domain = Reals
-    # ghg_cost_per_tonne = 0
     ################################################################################################################
     ################################################################################################################
     # Define sets
@@ -304,10 +289,6 @@ def create_model_and_export_excel(charging_speed, ghg_cost_per_tonne, x_chr_doma
     ################################################################################################################
     ################################################################################################################
     # Objective function (minimize total electricity cost)
-    # m.Objective = Objective(expr=sum((m.CRTP[t] * m.X_CHR[v, t]) / 1000 for v in m.V for t in m.T) +
-    #                              sum(((m.GHG[t] * (m.X_CHR[v, t])) / 1000) * m.ghg_cost for v in m.V for t in m.T) +
-    #                              sum(m.batt_deg_cost[v, t] for v in m.V for t in m.T),
-    #                         sense=minimize)
     m.Objective = Objective(expr=
                             sum((m.CRTP_Effective[v, t] * m.X_CHR[v, t]) / 1000 for v in m.V for t in m.T) +
                             # sum(((m.GHG[t] * (m.X_CHR[v, t])) / 1000) * m.ghg_cost for v in m.V for t in m.T) +
@@ -438,12 +419,11 @@ locations = [["Home"], ["Home", "Work"]]
 prices = {"TOU_pge": tou_prices_pge, "EV_Rate_pge": ev_rate_prices_pge, "RT_Rate_pge": rt_rate_pge,
           "TOU_sce": tou_prices_sce, "EV_Rate_sce": ev_rate_prices_sce, "RT_Rate_sce": rt_rate_sce,
           "TOU_sdge": tou_prices_sdge, "EV_Rate_sdge": ev_rate_prices_sdge, "RT_Rate_sdge": rt_rate_sdge,
-          # "TOU_ladwp": tou_prices_ladwp, "EV_Rate_ladwp": ev_rate_prices_ladwp, "RT_Rate_ladwp": rt_rate_ladwp,
+          "TOU_smud": tou_prices_smud, "EV_Rate_smud": ev_rate_prices_smud, "RT_Rate_smud": rt_rate_smud,
           }
 prices_commercial = {"commercial_pge": commercial_prices_pge, "commercial_sce": commercial_prices_sce,
-                     "commercial_sdge": commercial_prices_sdge,
-                     # "commercial_ladwp": commercial_prices_ladwp
-                    }
+                     "commercial_sdge": commercial_prices_sdge, "commercial_smud": commercial_prices_smud
+                     }
 
 # Iterate over all combinations
 for domain in x_chr_domain:
@@ -458,8 +438,8 @@ for domain in x_chr_domain:
                         commercial_price = prices_commercial.get("commercial_sce")
                     elif "sdge" in name.lower():
                         commercial_price = prices_commercial.get("commercial_sdge")
-                    # elif "ladwp" in name.lower():
-                    #     commercial_price = prices_commercial.get("commercial_ladwp")
+                    elif "smud" in name.lower():
+                        commercial_price = prices_commercial.get("commercial_smud")
                     else:
                         if isinstance(ep, dict):
                             commercial_price = {t: 420 for t in ep.keys()}  # Default price of 420
