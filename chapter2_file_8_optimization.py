@@ -38,9 +38,6 @@ max_index = max(max(map(int, inner_dict.keys())) for inner_dict in merged_dict.v
 
 # %%
 
-
-# %%
-
 class ChargingModel:
     def __init__(self, merged_dict, price, commercial_prices, GHG_dict, charging_speed, ghg_cost_per_tonne, x_chr_domain, locs, price_name):
         self.merged_dict = merged_dict
@@ -410,9 +407,9 @@ ghg_costs = [0]
 locations = [["Home"], ["Home", "Work"]]
 locations = [["Home"]]
 prices = {
-    # "TOU_pge": tou_prices_pge, "EV_Rate_pge": ev_rate_prices_pge, "RT_Rate_pge": rt_rate_pge,
-          # "TOU_sce": tou_prices_sce, "EV_Rate_sce": ev_rate_prices_sce, "RT_Rate_sce": rt_rate_sce,
-          # "TOU_sdge": tou_prices_sdge, "EV_Rate_sdge": ev_rate_prices_sdge, "RT_Rate_sdge": rt_rate_sdge,
+    "TOU_pge": tou_prices_pge, "EV_Rate_pge": ev_rate_prices_pge, "RT_Rate_pge": rt_rate_pge,
+          "TOU_sce": tou_prices_sce, "EV_Rate_sce": ev_rate_prices_sce, "RT_Rate_sce": rt_rate_sce,
+          "TOU_sdge": tou_prices_sdge, "EV_Rate_sdge": ev_rate_prices_sdge, "RT_Rate_sdge": rt_rate_sdge,
           "TOU_smud": tou_prices_smud, "EV_Rate_smud": ev_rate_prices_smud, "RT_Rate_smud": rt_rate_smud,
           }
 prices_commercial = {"commercial_pge": commercial_prices_pge, "commercial_sce": commercial_prices_sce,

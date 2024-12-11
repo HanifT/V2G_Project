@@ -86,10 +86,10 @@ utility_data = {
             "month_ranges": {'summer': (6, 9), 'winter': (10, 5)}
         },
         "EVR": {
-            "weekday_prices": {'summer': {'peak': 346, 'mid_peak': 196, 'off_peak': 142}, 'winter': {'peak': 163, 'mid_peak': 118, 'off_peak': 118}},
-            "weekend_prices": {'summer': {'peak': 346, 'mid_peak': 196, 'off_peak': 142}, 'winter': {'peak': 163, 'mid_peak': 118, 'off_peak': 118}},
-            "weekday_times": {'summer': {'peak': [(17, 20)], 'mid_peak': [(12, 17), (20, 24)]}, 'winter': {'peak': [(17, 20)], 'mid_peak': [(26, 26)]}},
-            "weekend_times": {'summer': {'peak': [(17, 20)], 'mid_peak': [(12, 17), (20, 24)]}, 'winter': {'peak': [(17, 20)], 'mid_peak': [(26, 26)]}},
+            "weekday_prices": {'summer': {'peak': 346, 'mid_peak': 195, 'off_peak': 127}, 'winter': {'peak': 163, 'mid_peak': 118, 'off_peak': 103}},
+            "weekend_prices": {'summer': {'peak': 346, 'mid_peak': 196, 'off_peak': 127}, 'winter': {'peak': 163, 'mid_peak': 118, 'off_peak': 103}},
+            "weekday_times": {'summer': {'peak': [(17, 20)], 'mid_peak': [(12, 17), (20, 24)]}, 'winter': {'peak': [(17, 20)], 'mid_peak': [(6, 17)]}},
+            "weekend_times": {'summer': {'peak': [(17, 20)], 'mid_peak': [(12, 17), (20, 24)]}, 'winter': {'peak': [(17, 20)], 'mid_peak': [(6, 17)]}},
             "month_ranges": {'summer': (6, 9), 'winter': (10, 5)}
         },
         "Commercial": {
