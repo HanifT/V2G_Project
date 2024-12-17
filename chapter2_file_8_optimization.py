@@ -13,20 +13,20 @@ logging.getLogger('pyomo.core').setLevel(logging.ERROR)
 GHG_data = pd.read_csv("CISO.csv")
 GHG_dict = dict(enumerate(GHG_data.iloc[:, 0]))
 
-# vehicle_list = ["P_1087", "P_1091", "P_1092", "P_1093", "P_1094", "P_1098", "P_1100", 'P_1109', 'P_1111', "P_1112", "P_1123", "P_1125",
-#                 "P_1125a", "P_1127", 'P_1131', 'P_1132', 'P_1135', 'P_1137', "P_1141", "P_1143", 'P_1217', 'P_1253', 'P_1257', 'P_1260',
-#                 'P_1271', 'P_1272', 'P_1279', 'P_1280', 'P_1281', 'P_1285', 'P_1288', 'P_1294', 'P_1295', 'P_1296', 'P_1304', 'P_1307',
-#                 "P_1357", "P_1367", 'P_1375', 'P_1353', 'P_1368', 'P_1371', "P_1376", 'P_1393', "P_1414", 'P_1419', 'P_1421', 'P_1422', 'P_1424', 'P_1427']
-#
-# vehicle_list = ["P_1087"]
+vehicle_list = ["P_1087", "P_1091", "P_1092", "P_1093", "P_1094", "P_1098", "P_1100", 'P_1109', 'P_1111', "P_1112", "P_1123", "P_1125",
+                "P_1125a", "P_1127", 'P_1131', 'P_1132', 'P_1135', 'P_1137', "P_1141", "P_1143", 'P_1217', 'P_1253', 'P_1257', 'P_1260',
+                'P_1271', 'P_1272', 'P_1279', 'P_1280', 'P_1281', 'P_1285', 'P_1288', 'P_1294', 'P_1295', 'P_1296', 'P_1304', 'P_1307',
+                "P_1357", "P_1367", 'P_1375', 'P_1353', 'P_1368', 'P_1371', "P_1376", 'P_1393', "P_1414", 'P_1419', 'P_1421', 'P_1422', 'P_1424', 'P_1427']
+
+
 # real_time_data(vehicle_list)
-# real_time_data_parking(vehicle_list)
+real_time_data_parking(vehicle_list)
 
-with open("merged_dict.json", "r") as json_file:
-    merged_dict = json.load(json_file)
-
-# with open("merged_dict_parking.json", "r") as json_file:
+# with open("merged_dict.json", "r") as json_file:
 #     merged_dict = json.load(json_file)
+
+with open("merged_dict_parking.json", "r") as json_file:
+    merged_dict = json.load(json_file)
 
 # %%
 rt_rate_pge, tou_prices_pge, ev_rate_prices_pge, commercial_prices_pge = get_utility_prices("PGE")
@@ -402,10 +402,10 @@ class ChargingModel:
 # Define input parameters
 x_chr_domain = [Reals]
 charging_speeds = [6.6, 12, 19]
-charging_speeds = [6.6]
+charging_speeds = [12, 19]
 ghg_costs = [0]
 locations = [["Home"], ["Home", "Work"]]
-locations = [["Home"]]
+
 prices = {
     "TOU_pge": tou_prices_pge, "EV_Rate_pge": ev_rate_prices_pge, "RT_Rate_pge": rt_rate_pge,
           "TOU_sce": tou_prices_sce, "EV_Rate_sce": ev_rate_prices_sce, "RT_Rate_sce": rt_rate_sce,
