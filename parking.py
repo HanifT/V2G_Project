@@ -3910,7 +3910,7 @@ def update_savings_columns1(df, df_price_estimations, current_year, v2g_cost, v1
             total_saving += yearly_saving / ((1 + interest_rate) ** year)
 
         # Add battery replacement costs with discounting
-        for cycle in range(1, cycles + 1):
+        for cycle in range(1, cycles):
             replacement_year = cycle * row["years_to_80_percent"]
             battery_cost = calculate_future_battery_price(cycle, current_year, row['bat_cap'], cycles, df_price_estimations)
             total_saving -= battery_cost / ((1 + interest_rate) ** replacement_year)
@@ -3939,7 +3939,7 @@ def update_savings_columns1(df, df_price_estimations, current_year, v2g_cost, v1
             total_saving += yearly_saving / ((1 + interest_rate) ** year)
 
         # Add battery replacement costs with discounting
-        for cycle in range(1, cycles + 1):
+        for cycle in range(1, cycles):
             replacement_year = cycle * row["years_to_80_percent"]
             battery_cost = calculate_future_battery_price(cycle, current_year, row['bat_cap'], cycles, df_price_estimations)
             total_saving -= battery_cost / ((1 + interest_rate) ** replacement_year)

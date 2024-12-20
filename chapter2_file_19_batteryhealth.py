@@ -1,9 +1,8 @@
 # %%
 import pandas as pd
-from parking import (load_bev_distance, process_actual_cost, load_and_clean_data,update_savings_columns1, group_charging_data, process_hourly_charging_data, add_smart_avg, merge_and_calculate_costs, update_savings_columns, plot_saving_ev_vs_distance)
+from parking import (load_bev_distance, process_actual_cost, update_savings_columns1, group_charging_data,
+                     process_hourly_charging_data, add_smart_avg, merge_and_calculate_costs, plot_saving_ev_vs_distance)
 import warnings
-import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
 warnings.filterwarnings("ignore", category=pd.errors.PerformanceWarning)
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 # %%  File paths for data
@@ -39,8 +38,8 @@ def process_and_plot_utility_data(utility_name, pkl_path, ylim1, ylim2):
         batt_price_input,
         current_year=2023,
         v2g_cost=7300,
-        v1g_cost=500,
-        v1g_cost_19kw=1600,
+        v1g_cost=0,
+        v1g_cost_19kw=1300,
         interest_rate=0.05
     )
     all_hourly_charging_data_grouped = all_hourly_charging_data_grouped.reset_index(drop=True)
@@ -55,13 +54,18 @@ def process_and_plot_utility_data(utility_name, pkl_path, ylim1, ylim2):
     # Plot the figures
     plot_saving_ev_vs_distance(summary_actual, add_actual_lines=False, add_potential_lines=False, ylim=ylim1, text_size=18, title=utility_name)
     plot_saving_ev_vs_distance(summary_potential, add_actual_lines=False, add_potential_lines=False, ylim=ylim2, text_size=18, title=utility_name)
+    return all_hourly_charging_data_grouped, summary, summary_actual, summary_potential
 # %%
 
 
-process_and_plot_utility_data("PGE", "/Users/haniftayarani/V2G_Project/Hourly_data", 5500, 7000)
-process_and_plot_utility_data("SCE", "/Users/haniftayarani/V2G_Project/Hourly_data", 5500, 7000)
+all_hourly_charging_data_grouped_pge, summary_pge, summary_actual_pge, summary_potential_pge = (
+    process_and_plot_utility_data("PGE", "/Users/haniftayarani/V2G_Project/Hourly_data", 5500, 7000))
+
+all_hourly_charging_data_grouped_sce, summary_pge_sce, summary_actual_sce, summary_potential_sce = (
+    process_and_plot_utility_data("SCE", "/Users/haniftayarani/V2G_Project/Hourly_data", 5500, 7000))
+
 process_and_plot_utility_data("SDGE", "/Users/haniftayarani/V2G_Project/Hourly_data",5500, 7000)
-process_and_plot_utility_data("SMUD", "/Users/haniftayarani/V2G_Project/Hourly_data",5500, 7000)
+process_and_plot_utility_data("SMUD", "/Users/haniftayarani/V2G_Project/Hourly_data",1500, 1500)
 
 
 

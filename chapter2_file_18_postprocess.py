@@ -124,11 +124,13 @@ plot_box_by_tariff(CDF_N_grouped_g_pge, CDF_P_grouped_g_pge, figtitle="Annual CO
 # %%
 import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.patches as mpatches
 
-def plot_benefit_vs_degradation(df, num_vehicles, Utility="PGE", title='title', lb=0, ub=1000, title_size=18, axis_text_size=18, ax=None, last_in_row=False):
+
+def plot_benefit_vs_degradation(df, num_vehicles, Utility="PGE", title='title', lb=0, ub=1000, title_size=18, axis_text_size=18, ax=None, last_in_row=False, unified_x_title=False):
 
     if ax is None:
-        fig, ax = plt.subplots(figsize=(6, 6))  # Create a new plot if no axis is provided
+        fig, ax = plt.subplots(figsize=(10, 10))  # Create a new plot if no axis is provided
 
     df1 = df.copy()
     df1 = df1[df1["Utility"] == Utility]
@@ -180,8 +182,8 @@ def plot_benefit_vs_degradation(df, num_vehicles, Utility="PGE", title='title', 
             ax.barh(current_y + smart_bar_offsets[idx] + bar_height / 4, total_benefit, height=bar_height, color=smart_colors[idx])
 
             # Add text labels for Degradation and Benefit
-            ax.text(degradation_cost - 0.25, current_y + smart_bar_offsets[idx], f"${degradation_cost:.2f}", ha='right', va='center', fontsize=axis_text_size - 2)
-            ax.text(total_benefit + 0.25, current_y + smart_bar_offsets[idx], f"${total_benefit:.2f}", ha='left', va='center', fontsize=axis_text_size - 2)
+            ax.text(degradation_cost - 0.25, current_y + smart_bar_offsets[idx], f"${degradation_cost:.0f}", ha='right', va='center', fontsize=axis_text_size)
+            ax.text(total_benefit + 0.25, current_y + smart_bar_offsets[idx], f"${total_benefit:.0f}", ha='left', va='center', fontsize=axis_text_size)
 
             # Add individual labels for each speed
             y_positions.append(current_y + smart_bar_offsets[idx])
@@ -189,7 +191,11 @@ def plot_benefit_vs_degradation(df, num_vehicles, Utility="PGE", title='title', 
             current_y += 0.6
     # Calculate center of Smart Charging section for annotation
     group_positions.append(np.mean([2.5 + offset for offset in smart_bar_offsets]))
-
+    first_line_position = current_y - 0.15
+    second_line_position = current_y + 4.25
+    ax.axhline(first_line_position, color='black', linestyle='--', linewidth=1)
+    ax.axhline(second_line_position, color='black', linestyle='--', linewidth=1)
+    ax.set_xlim(-lb, ub)
     # Helper function to plot side-by-side bars for V2G with locations
     def plot_v2g_section(data, section_label):
         nonlocal current_y
@@ -208,8 +214,8 @@ def plot_benefit_vs_degradation(df, num_vehicles, Utility="PGE", title='title', 
                     ax.barh(current_y + bar_offsets[i] + bar_height, total_benefit, height=bar_height, color=v2g_colors[loc])
 
                     # Add text labels
-                    ax.text(degradation_cost - 0.2, current_y + bar_offsets[i] + 0.5, f"${degradation_cost:.2f}", ha='right', va='center', fontsize=axis_text_size - 2)
-                    ax.text(total_benefit + 0.2, current_y + bar_offsets[i] + 0.5, f"${total_benefit:.2f}", ha='left', va='center', fontsize=axis_text_size - 2)
+                    ax.text(degradation_cost - 0.2, current_y + bar_offsets[i] + 0.5, f"${degradation_cost:.0f}", ha='right', va='center', fontsize=axis_text_size)
+                    ax.text(total_benefit + 0.2, current_y + bar_offsets[i] + 0.5, f"${total_benefit:.0f}", ha='left', va='center', fontsize=axis_text_size)
 
                     # Add labels
                     y_positions.append(current_y + bar_offsets[i] + 0.5)
@@ -233,7 +239,7 @@ def plot_benefit_vs_degradation(df, num_vehicles, Utility="PGE", title='title', 
 
     # Customize y-axis labels with all speeds retained
     ax.set_yticks(y_positions)
-    ax.set_yticklabels(scenario_labels, fontsize=axis_text_size - 2)
+    ax.set_yticklabels(scenario_labels, fontsize=axis_text_size - 1)
     ax.axvline(0, color='grey', linewidth=1)
     ax.set_xlim(-lb, ub)
     ax.grid(True, axis='x', linestyle='--', alpha=0.7)
@@ -241,14 +247,53 @@ def plot_benefit_vs_degradation(df, num_vehicles, Utility="PGE", title='title', 
     # Add panel-specific title
     ax.set_title(title, fontsize=title_size)
 
+    # Customize x-axis ticks and labels
+    ax.set_xticks([-lb, 0, ub])
+    ax.set_xticklabels([f'Loss', f'Baseline Cost\n(${round((baseline_cost / num_vehicles), 2)})', 'Savings'], fontsize=axis_text_size - 1)
+
+    # Add x-axis title only if not unified
+    if not unified_x_title:
+        ax.set_xlabel("", fontsize=title_size)
+
+    # Add secondary y-axis for the last graph in the row
     if last_in_row:
-        ax2 = ax.twinx()  # Add secondary y-axis
-        ax2.set_yticks(y_positions)
-        ax2.set_yticklabels(scenario_labels, fontsize=axis_text_size - 2)
+        x_annotation_position = ub * 1.20
+        group_labels = ['V1G', 'V2G\nNo Change in\nPlugging Behavior', 'V2G\nPlugging-in\nWhen Parked']
+        group_offsets = [0, 0.5, 1.0]  # Offset for each label, in y-axis units
+
+        for pos, label, offset in zip(group_positions, group_labels, group_offsets):
+            ax.text(
+                x_annotation_position,
+                pos + offset,  # Adjust the y-position with the offset
+                label,
+                ha='center',
+                va='center',
+                fontsize=title_size -2,
+                weight='bold',
+                rotation=90
+            )
+        # Add legend for the last graph in the row
+        smart_patches = [mpatches.Patch(color=smart_colors[i], label=f"Smart Charging") for i in range(len(speeds))]
+        v2g_patches = [
+            mpatches.Patch(color=v2g_colors['Home'], label="Bidirectional Charger at Home"),
+            mpatches.Patch(color=v2g_colors['Home_Work'], label="Bidirectional Charger at Home + Work")
+        ]
+        degradation_patch = mpatches.Patch(color=v2g_colors['Degradation'], label="Battery Degradation")
+
+        # Place the legend outside the plot at the bottom in one line
+        fig = ax.get_figure()
+        fig.legend(
+            handles=[smart_patches[0]] + v2g_patches + [degradation_patch],
+            loc='lower center',
+            fontsize=axis_text_size - 1,
+            ncol=len(smart_patches) + len(v2g_patches) + 1,  # Number of columns in the legend
+            bbox_to_anchor=(0.5, -0.01)  # Center the legend below the plot
+        )
 
     return ax
 
-def plot_benefit_vs_degradation_panel(data_list, num_vehicles, utilities, titles, lbs, ubs, y_title, x_title, figsize=(20, 6), title_size=18, axis_text_size=14):
+
+def plot_benefit_vs_degradation_panel(data_list, num_vehicles, utilities, titles, lbs, ubs, y_title, x_title, figsize=(20, 8), title_size=18, axis_text_size=14):
     num_plots = len(data_list)  # Number of panels
     fig, axes = plt.subplots(1, num_plots, figsize=figsize, sharey=True)  # Create a single row of plots
 
@@ -261,33 +306,78 @@ def plot_benefit_vs_degradation_panel(data_list, num_vehicles, utilities, titles
             title=titles[i],
             lb=lbs[i],
             ub=ubs[i],
-            title_size=title_size,
+            title_size=title_size-1,
             axis_text_size=axis_text_size,
-            ax=ax  # Pass the specific axis
+            ax=ax,  # Pass the specific axis
+            last_in_row=(i == len(axes) - 1),  # Add legend and secondary y-axis only for the last plot
+            unified_x_title=(i != len(axes) - 1)  # Unified x-axis title only for the last plot
         )
 
-        # Set the title for each panel
-        ax.set_title(titles[i], fontsize=title_size)
-
     # Add shared y-axis and x-axis labels
-    fig.text(0.04, 0.5, y_title, va='center', rotation='vertical', fontsize=title_size)  # Y-axis
+    fig.text(0.01, 0.5, y_title, va='center', rotation='vertical', fontsize=title_size+1)  # Y-axis
     fig.text(0.5, 0.04, x_title, ha='center', fontsize=title_size)  # X-axis
 
     # Adjust layout
-    plt.tight_layout(rect=[0.05, 0.05, 1, 0.95])
+    plt.tight_layout(rect=[0.04, 0.09, 1, 1])
     plt.show()
 
-
+# %%
 plot_benefit_vs_degradation_panel(
     data_list=[TOU_rates_total, EV_rates_total, RT_rates_total_TOU, RT_rates_total_EV],
     num_vehicles=50,
     utilities=["PGE", "PGE", "PGE", "PGE"],
-    titles=['TOU_PGE', 'EV_PGE', 'RT_PGE_TOU', 'RT_PGE_EV'],
-    lbs=[800, 1500, 3000, 3000],
-    ubs=[1200, 5800, 10500, 10500],
-    y_title="Net Benefit and Degradation Cost per Vehicle ($)",
-    x_title="Charging Scenarios",
-    figsize=(24, 6),
-    title_size=14,
-    axis_text_size=12
+    titles=['TOU', 'EV Rate', 'RT Rate compare\nwith TOU', 'RT Rate compare\nwith EV Rate'],
+    lbs=[4000, 4000, 4000, 4000],
+    ubs=[11000, 11000, 11000, 11000],
+    y_title="Charging Scenarios by Charger Speed and\nDeployment Location (PGE Territory)",
+    # x_title="Net Benefit and Associated Degradation Cost per Vehicle ($)",
+    x_title="",
+    figsize=(42, 12),
+    title_size=38,
+    axis_text_size=35
+)
+
+plot_benefit_vs_degradation_panel(
+    data_list=[TOU_rates_total, EV_rates_total, RT_rates_total_TOU, RT_rates_total_EV],
+    num_vehicles=50,
+    utilities=["SCE", "SCE", "SCE", "SCE"],
+    titles=['TOU', 'EV Rate', 'RT Rate compare\nwith TOU', 'RT Rate compare\nwith EV Rate'],
+    lbs=[4000, 4000, 4000, 4000],
+    ubs=[12000, 12000, 12000, 12000],
+    y_title="Charging Scenarios by Charger Speed and\nDeployment Location (SCE Territory)",
+    # x_title="Net Benefit and Associated Degradation Cost per Vehicle ($)",
+    x_title="",
+    figsize=(42, 12),
+    title_size=38,
+    axis_text_size=35
+)
+
+plot_benefit_vs_degradation_panel(
+    data_list=[TOU_rates_total, EV_rates_total, RT_rates_total_TOU, RT_rates_total_EV],
+    num_vehicles=50,
+    utilities=["SDGE", "SDGE", "SDGE", "SDGE"],
+    titles=['TOU', 'EV Rate', 'RT Rate compare\nwith TOU', 'RT Rate compare\nwith EV Rate'],
+    lbs=[4000, 4000, 4000, 4000],
+    ubs=[14000, 14000, 14000, 14000],
+    y_title="Charging Scenarios by Charger Speed and\nDeployment Location (SDGE Territory)",
+    # x_title="Net Benefit and Associated Degradation Cost per Vehicle ($)",
+    x_title="",
+    figsize=(42, 12),
+    title_size=38,
+    axis_text_size=35
+)
+
+plot_benefit_vs_degradation_panel(
+    data_list=[TOU_rates_total, EV_rates_total, RT_rates_total_TOU, RT_rates_total_EV],
+    num_vehicles=50,
+    utilities=["SMUD", "SMUD", "SMUD", "SMUD"],
+    titles=['TOU', 'EV Rate', 'RT Rate compare\nwith TOU', 'RT Rate compare\nwith EV Rate'],
+    lbs=[4000, 4000, 4000, 4000],
+    ubs=[12000, 12000, 12000, 12000],
+    y_title="Charging Scenarios by Charger Speed and\nDeployment Location (SMUD Territory)",
+    # x_title="Net Benefit and Associated Degradation Cost per Vehicle ($)",
+    x_title="",
+    figsize=(42, 12),
+    title_size=38,
+    axis_text_size=35
 )
