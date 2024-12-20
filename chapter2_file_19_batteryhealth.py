@@ -64,8 +64,9 @@ all_hourly_charging_data_grouped_pge, summary_pge, summary_actual_pge, summary_p
 all_hourly_charging_data_grouped_sce, summary_pge_sce, summary_actual_sce, summary_potential_sce = (
     process_and_plot_utility_data("SCE", "/Users/haniftayarani/V2G_Project/Hourly_data", 5500, 7000))
 
-process_and_plot_utility_data("SDGE", "/Users/haniftayarani/V2G_Project/Hourly_data",5500, 7000)
-process_and_plot_utility_data("SMUD", "/Users/haniftayarani/V2G_Project/Hourly_data",1500, 1500)
+all_hourly_charging_data_grouped_sdge, summary_pge_sdge, summary_actual_sdge, summary_potential_sdge = (
+    process_and_plot_utility_data("SDGE", "/Users/haniftayarani/V2G_Project/Hourly_data",5500, 7000))
 
-
+all_hourly_charging_data_grouped_smud, summary_pge_smud, summary_actual_smud, summary_potential_smud= (
+    process_and_plot_utility_data("SMUD", "/Users/haniftayarani/V2G_Project/Hourly_data",1500, 1500))
 
