@@ -1,58 +1,67 @@
 # %%
 import pandas as pd
-from parking import (load_bev_distance, process_actual_cost, load_and_clean_data, group_charging_data, process_hourly_charging_data, add_smart_avg, merge_and_calculate_costs, update_savings_columns, plot_saving_ev_vs_distance)
+from parking import (load_bev_distance, process_actual_cost, load_and_clean_data,update_savings_columns1, group_charging_data, process_hourly_charging_data, add_smart_avg, merge_and_calculate_costs, update_savings_columns, plot_saving_ev_vs_distance)
 import warnings
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 warnings.filterwarnings("ignore", category=pd.errors.PerformanceWarning)
 warnings.filterwarnings("ignore", category=DeprecationWarning)
-
 # %%  File paths for data
-batt_file = "/Users/haniftayarani/V2G_Project/Travel_data/Battery_Price_Per_kWh_Estimations.csv"
-bev_file = "/Users/haniftayarani/V2G_Project/data.csv"
-ev_cost_file = '/Users/haniftayarani/V2G_Project/Results/Actual/Actual_EV_rate_cost.xlsx'
-tou_cost_file = '/Users/haniftayarani/V2G_Project/Results/Actual/Actual_TOU_cost.xlsx'
 
-# Load and process BEV distance data
-bev_distance = load_bev_distance(bev_file)
-batt_price = pd.read_csv(batt_file)
-# Process actual costs
-actual_cost = process_actual_cost(ev_cost_file, tou_cost_file)
 
-# Load and clean the N and P datasets
-loaded_N_data_battery = load_and_clean_data('all_hourly_charging_N_data_battery.pkl')
-loaded_P_data_battery = load_and_clean_data('all_hourly_charging_P_data_battery.pkl')
+def process_and_plot_utility_data(utility_name, pkl_path, ylim1, ylim2):
+    batt_file = "/Users/haniftayarani/V2G_Project/Travel_data/Battery_Price_Per_kWh_Estimations.csv"
+    bev_file = "/Users/haniftayarani/V2G_Project/data.csv"
 
-# Group the data
-all_hourly_charging_N_data_grouped_battery = group_charging_data(loaded_N_data_battery)
-all_hourly_charging_P_data_grouped_battery = group_charging_data(loaded_P_data_battery)
+    # Load and process BEV distance data
+    bev_distance_input = load_bev_distance(bev_file)
+    batt_price_input = pd.read_csv(batt_file)
+    ev_cost_file = f'/Users/haniftayarani/V2G_Project/Results/Actual/Actual_{utility_name}_EV_cost.xlsx'
+    tou_cost_file = f'/Users/haniftayarani/V2G_Project/Results/Actual/Actual_{utility_name}_TOU_cost.xlsx'
+    actual_cost_input = process_actual_cost(ev_cost_file, tou_cost_file)
+    # Load the data for the specified utility
+    normal_pkl = f"{pkl_path}/combined_hourly_data_normal_{utility_name}.pkl"
+    parking_pkl = f"{pkl_path}/combined_hourly_data_parking_{utility_name}.pkl"
+
+    combined_hourly_data_normal = pd.read_pickle(normal_pkl)
+    combined_hourly_data_parking = pd.read_pickle(parking_pkl)
+
+    # Group the data
+    grouped_normal = group_charging_data(combined_hourly_data_normal)
+    grouped_parking = group_charging_data(combined_hourly_data_parking)
+
+    # Process the data
+    all_hourly_charging_data_grouped = process_hourly_charging_data(grouped_normal, grouped_parking)
+    all_hourly_charging_data_grouped = add_smart_avg(all_hourly_charging_data_grouped)
+    all_hourly_charging_data_grouped = merge_and_calculate_costs(all_hourly_charging_data_grouped, actual_cost_input, bev_distance_input)
+    all_hourly_charging_data_grouped = update_savings_columns1(
+        all_hourly_charging_data_grouped,
+        batt_price_input,
+        current_year=2023,
+        v2g_cost=7300,
+        v1g_cost=500,
+        v1g_cost_19kw=1600,
+        interest_rate=0.05
+    )
+    all_hourly_charging_data_grouped = all_hourly_charging_data_grouped.reset_index(drop=True)
+
+    # Generate summaries
+    summary = all_hourly_charging_data_grouped.groupby(["Vehicle", "Scenario"]).apply(
+        lambda x: x.loc[x['Saving_EV'].idxmax()]
+    )
+    summary_actual = summary[summary["Scenario"] == "No_change"].reset_index(drop=True)
+    summary_potential = summary[summary["Scenario"] == "With_change"].reset_index(drop=True)
+
+    # Plot the figures
+    plot_saving_ev_vs_distance(summary_actual, add_actual_lines=False, add_potential_lines=False, ylim=ylim1, text_size=18, title=utility_name)
+    plot_saving_ev_vs_distance(summary_potential, add_actual_lines=False, add_potential_lines=False, ylim=ylim2, text_size=18, title=utility_name)
 # %%
 
-# Process the hourly charging data for N and P datasets
-all_hourly_charging_data_grouped_battery = process_hourly_charging_data(all_hourly_charging_N_data_grouped_battery, all_hourly_charging_P_data_grouped_battery)
-# Add smart averages and percentage drop
-all_hourly_charging_data_grouped_battery = add_smart_avg(all_hourly_charging_data_grouped_battery)
 
-# Merge costs and calculate the total cost
-all_hourly_charging_data_grouped_battery = merge_and_calculate_costs(all_hourly_charging_data_grouped_battery, actual_cost, bev_distance)
+process_and_plot_utility_data("PGE", "/Users/haniftayarani/V2G_Project/Hourly_data", 5500, 7000)
+process_and_plot_utility_data("SCE", "/Users/haniftayarani/V2G_Project/Hourly_data", 5500, 7000)
+process_and_plot_utility_data("SDGE", "/Users/haniftayarani/V2G_Project/Hourly_data",5500, 7000)
+process_and_plot_utility_data("SMUD", "/Users/haniftayarani/V2G_Project/Hourly_data",5500, 7000)
 
-all_hourly_charging_data_grouped_battery = update_savings_columns(all_hourly_charging_data_grouped_battery, batt_price, current_year=2023, v2g_cost=7300, v1g_cost=500, v1g_cost_19kw=1600)
 
-all_hourly_charging_data_grouped_battery = all_hourly_charging_data_grouped_battery.reset_index(drop=True)
 
-all_hourly_charging_data_grouped_battery_summary = all_hourly_charging_data_grouped_battery.groupby(["Vehicle", "GHG Cost", "Charging_Behavior"]).apply(lambda x: x.loc[x['Saving_EV'].idxmax()])
-
-all_hourly_charging_data_grouped_battery_summary_Actual = all_hourly_charging_data_grouped_battery_summary[all_hourly_charging_data_grouped_battery_summary["Charging_Behavior"] == "Actual"].reset_index(drop=True)
-all_hourly_charging_data_grouped_battery_summary_Actual_0 = all_hourly_charging_data_grouped_battery_summary_Actual[all_hourly_charging_data_grouped_battery_summary_Actual["GHG Cost"] == 0]
-all_hourly_charging_data_grouped_battery_summary_Actual_50 = all_hourly_charging_data_grouped_battery_summary_Actual[all_hourly_charging_data_grouped_battery_summary_Actual["GHG Cost"] == 0.05]
-all_hourly_charging_data_grouped_battery_summary_Actual_191 = all_hourly_charging_data_grouped_battery_summary_Actual[all_hourly_charging_data_grouped_battery_summary_Actual["GHG Cost"] == 0.191]
-
-all_hourly_charging_data_grouped_battery_summary_Potential = all_hourly_charging_data_grouped_battery_summary[all_hourly_charging_data_grouped_battery_summary["Charging_Behavior"] == "Potential"].reset_index(drop=True)
-all_hourly_charging_data_grouped_battery_summary_Potential_0 = all_hourly_charging_data_grouped_battery_summary_Potential[all_hourly_charging_data_grouped_battery_summary_Potential["GHG Cost"] == 0]
-all_hourly_charging_data_grouped_battery_summary_Potential_50 = all_hourly_charging_data_grouped_battery_summary_Potential[all_hourly_charging_data_grouped_battery_summary_Potential["GHG Cost"] == 0.05]
-all_hourly_charging_data_grouped_battery_summary_Potential_191 = all_hourly_charging_data_grouped_battery_summary_Potential[all_hourly_charging_data_grouped_battery_summary_Potential["GHG Cost"] == 0.191]
-
-plot_saving_ev_vs_distance(all_hourly_charging_data_grouped_battery_summary_Actual_191, add_actual_lines=True, add_potential_lines=False, ylim=3500, text_size=18)
-plot_saving_ev_vs_distance(all_hourly_charging_data_grouped_battery_summary_Potential_191, add_actual_lines=False, add_potential_lines=False, ylim=5500, text_size=18)
-(all_hourly_charging_data_grouped_battery_summary_Potential_191["Saving_TOU"]/all_hourly_charging_data_grouped_battery_summary_Potential_191["average_smart_years"]).mean()
-(all_hourly_charging_data_grouped_battery_summary_Actual_191["Saving_TOU"]/all_hourly_charging_data_grouped_battery_summary_Potential_191["average_smart_years"]).mean()

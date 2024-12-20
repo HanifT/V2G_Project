@@ -2,11 +2,8 @@
 import os
 import json
 import pandas as pd
-import numpy as np
-import seaborn as sns
-import matplotlib.pyplot as plt
 from parking import charging_dataframe
-from price_factor import tou_price, ev_rate_price
+from price_factor import get_utility_prices
 # %%
 
 GHG_data = pd.read_csv("CISO.csv")
@@ -234,164 +231,225 @@ for outer_key, inner_dict in BEV_load_curve.items():
 df = pd.DataFrame(rows)
 
 
-
 # %%
 
 with open("combined_price_PGE_average.json", "r") as json_file:
     combined_price_PGE_average = json.load(json_file)
 
-tou_prices = tou_price(550, 450, 430, 400)
-ev_rate_prices = ev_rate_price(310, 510, 620, 310, 480, 490)
+with open("combined_price_SCE_average.json", "r") as json_file:
+    combined_price_SCE_average = json.load(json_file)
 
-# Convert keys to integers
-RT_PGE = {int(key): value for key, value in combined_price_PGE_average.items()}
-tou_prices = {int(key): value for key, value in tou_prices.items()}
-ev_rate_prices = {int(key): value for key, value in ev_rate_prices.items()}
+with open("combined_price_SDGE_average.json", "r") as json_file:
+    combined_price_SDGE_average = json.load(json_file)
 
+with open("combined_price_SMUD_average.json", "r") as json_file:
+    combined_price_SMUD_average = json.load(json_file)
+
+rt_rate_pge, tou_prices_pge, ev_rate_prices_pge, commercial_prices_pge = get_utility_prices("PGE")
+rt_rate_sce, tou_prices_sce, ev_rate_prices_sce, commercial_prices_sce = get_utility_prices("SCE")
+rt_rate_sdge, tou_prices_sdge, ev_rate_prices_sdge, commercial_prices_sdge = get_utility_prices("SDGE")
+rt_rate_smud, tou_prices_smud, ev_rate_prices_smud, commercial_prices_smud = get_utility_prices("SMUD")
 
 
 # %%
 
-def price_curve(vehicle_data, electricity_price, ghg, dc_fast_price, degradation_slope):
-    vehicle_costs = {}
-    vehicle_total_charge = {}
-    vehicle_total_ghg = {}
-    hourly_data = []
+def run_and_save_all_utilities(vehicle_data, ghg_dict,
+                               dc_fast_price, degradation_slope,
+                               output_prefix="Actual"):
+    """
+    1) Runs the revised price_curve function for each utility (PGE, SCE, SDGE, SMUD)
+       and each home tariff (RT, TOU, EV), with commercial tariff used for 'work'.
+    2) Saves the outputs to Excel files matching your naming scheme.
 
-    # Iterate through vehicle data and calculate costs
-    for vehicle_id, hours in vehicle_data.items():
-        total_charge = 0  # Initialize cumulative charge for the vehicle
-        vehicle_costs[vehicle_id] = []
-        ghg_cost_accumulated = 0  # Initialize cumulative GHG cost
+    Parameters
+    ----------
+    vehicle_data      : dict
+        Charging data (including 'location'='home' or 'work', 'charge_type', etc.).
+    ghg_dict          : dict
+        { hour: emission_factor }
+    dc_fast_price     : float
+        DC fast charging price (cents/kWh)
+    degradation_slope : float
+        Degradation cost factor per kWh charged
+    output_prefix     : str
+        Prefix string for output file names (default "Actual").
 
-        for hour, data in hours.items():
-            charge_type = data.get('charge_type', 'None')
-            soc_diff = data.get('soc_diff', 0)
-            batt = data.get('bat_cap', 80)
-            hour_index = int(hour)
+    Returns
+    -------
+    results : dict
+        Nested dictionary of DataFrames:
+        {
+          'PGE': {
+             'RT':  (df_aggregated, df_hourly_mean, df_hourly),
+             'TOU': (df_aggregated, df_hourly_mean, df_hourly),
+             'EV':  (df_aggregated, df_hourly_mean, df_hourly)
+          },
+          'SCE': { ... },
+          'SDGE': { ... },
+          'SMUD': { ... }
+        }
+    """
 
-            if charge_type != 'DC_FAST' and hour_index in electricity_price:
-                cost = (soc_diff/100 * batt) * 1.05 * (electricity_price[hour_index]) / 1000
-                ghg_cost = ((soc_diff * batt)/100) * 1.05 * (ghg[hour_index]) / 1000
-                total_charge += soc_diff/100 * batt
+    def convert_to_int_keys(d):
+        return {int(k): v for k, v in d.items()}
+
+    # Ensure GHG dict also uses int keys
+    ghg_dict_int = convert_to_int_keys(ghg_dict)
+
+    # This function references the revised price_curve that uses home_price & commercial_price
+    def price_curve(vehicle_data, home_price, commercial_price, ghg, dc_fast_price, degradation_slope):
+        home_price_int = {int(k): v for k, v in home_price.items()}
+        commercial_price_int = {int(k): v for k, v in commercial_price.items()}
+        ghg_int = {int(k): v for k, v in ghg.items()}
+
+        vehicle_costs = {}
+        vehicle_total_charge = {}
+        vehicle_total_ghg = {}
+        hourly_data = []
+
+        for vehicle_id, hours in vehicle_data.items():
+            total_charge = 0
+            ghg_cost_accumulated = 0
+            vehicle_costs[vehicle_id] = []
+
+            for hour, data in hours.items():
+                charge_type = data.get('charge_type', 'None')
+                location = data.get('location', 'home')  # default is 'home' if missing
+                soc_diff = data.get('soc_diff', 0)
+                batt = data.get('bat_cap', 80)
+                hour_index = int(hour)
+
+                if soc_diff <= 0:
+                    continue  # Skip if no charging
+
+                if charge_type == 'DC_FAST':
+                    cost = (soc_diff / 100.0 * batt) * 1.05 * dc_fast_price / 1000
+                    ghg_cost = ((soc_diff * batt) / 100.0) * 1.05 * ghg_int.get(hour_index, 0) / 1000
+                else:
+                    # AC charging
+                    if location == 'work':
+                        elec_price = commercial_price_int.get(hour_index, 0)
+                    else:
+                        elec_price = home_price_int.get(hour_index, 0)
+                    cost = (soc_diff / 100.0 * batt) * 1.05 * elec_price / 1000
+                    ghg_cost = ((soc_diff * batt) / 100.0) * 1.05 * ghg_int.get(hour_index, 0) / 1000
+
+                total_charge += (soc_diff / 100.0) * batt
                 vehicle_costs[vehicle_id].append(cost)
                 ghg_cost_accumulated += ghg_cost
 
-            elif charge_type == 'DC_FAST':
-                cost = (soc_diff/100 * batt) * 1.05 * dc_fast_price / 1000
-                ghg_cost = ((soc_diff * batt)/100) * 1.05 * (ghg[hour_index]) / 1000
-                total_charge += soc_diff/100 * batt
-                vehicle_costs[vehicle_id].append(cost)
-                ghg_cost_accumulated += ghg_cost
+                hourly_data.append({
+                    'Vehicle': vehicle_id,
+                    'Hour': hour_index,
+                    'Charge_Type': charge_type,
+                    'Location': location,
+                    'SOC_Diff': soc_diff,
+                    'Battery_Capacity': batt,
+                    'Electricity_Cost': cost,
+                    'GHG_Cost': ghg_cost,
+                    'Total_Charge': total_charge
+                })
 
-            # Append hourly data
-            hourly_data.append({
+            vehicle_total_charge[vehicle_id] = total_charge
+            vehicle_total_ghg[vehicle_id] = ghg_cost_accumulated
+
+        df_data = []
+        for vehicle_id, costs in vehicle_costs.items():
+            vehicle_cost = sum(costs)
+            total_charge = vehicle_total_charge[vehicle_id]
+            degradation_cost = degradation_slope * total_charge * 1.05
+            ghg_cost = vehicle_total_ghg[vehicle_id] * 0.05  # Example scaling
+
+            df_data.append({
                 'Vehicle': vehicle_id,
-                'Hour': hour_index,
-                'Charge_Type': charge_type,
-                'SOC_Diff': soc_diff,
-                'Battery_Capacity': batt,
-                'Electricity_Cost': cost,
+                'Electricity_Cost': vehicle_cost,
+                'Degradation_Cost': degradation_cost,
                 'GHG_Cost': ghg_cost,
-                'Total_Charge': total_charge
+                'Total Charge': total_charge
             })
 
-        vehicle_total_charge[vehicle_id] = total_charge
-        vehicle_total_ghg[vehicle_id] = ghg_cost_accumulated
+        df_aggregated = pd.DataFrame(df_data)
+        df_hourly = pd.DataFrame(hourly_data)
 
-    # Calculate degradation cost and create a list of dictionaries for DataFrame creation
-    df_data = []
-    for vehicle_id, costs in vehicle_costs.items():
-        vehicle_cost = sum(costs)
-        total_charge = vehicle_total_charge[vehicle_id]
-        degradation_cost = degradation_slope * total_charge * 1.05  # Degradation cost calculation
-        ghg_cost = vehicle_total_ghg[vehicle_id] * 0.05  # Use accumulated GHG cost for this vehicle
-        df_data.append({'Vehicle': vehicle_id, 'Electricity_Cost': vehicle_cost, 'Degradation_Cost': degradation_cost, 'GHG_Cost': ghg_cost, 'Total Charge': total_charge})
+        # Filter out charge_type 'None' or SOC_Diff <= 0 (we already skip SOC_Diff <= 0)
+        df_hourly = df_hourly[df_hourly["Charge_Type"] != "None"]
 
-    # Convert list of dictionaries to DataFrame for aggregated data
-    df_aggregated = pd.DataFrame(df_data)
+        # Calculate kWh
+        df_hourly["X_CHR"] = (df_hourly["SOC_Diff"] * df_hourly["Battery_Capacity"]) / 100.0
+        df_hourly["daily_hour"] = df_hourly["Hour"] % 24
 
-    # Convert list of dictionaries to DataFrame for hourly data
-    df_hourly = pd.DataFrame(hourly_data)
+        # Group by vehicle & daily_hour => mean
+        df_hourly_mean = df_hourly.groupby(["Vehicle", "daily_hour"])["X_CHR"].mean().reset_index()
+        # Sum the means across vehicles
+        df_hourly_mean = df_hourly_mean.groupby("daily_hour")["X_CHR"].sum().reset_index()
 
-    # # Filter out zero values before calculating the mean
-    df_hourly = df_hourly[df_hourly["Charge_Type"] != "None"]
-    df_hourly = df_hourly[df_hourly["SOC_Diff"] > 0]
-    # # Calculate the mean of non-zero Electricity_Cost for each daily hour
-    df_hourly["X_CHR"] = (df_hourly["SOC_Diff"] * df_hourly["Battery_Capacity"]) / 100
-    df_hourly["daily_hour"] = df_hourly["Hour"] % 24
-    df_hourly_mean = df_hourly.groupby(["Vehicle", "daily_hour"])["X_CHR"].mean().reset_index(drop=False)
-    #
-    df_hourly_mean = df_hourly_mean.groupby("daily_hour").agg({
-        "X_CHR": "sum",
-    }).reset_index(drop=False)
+        return df_aggregated, df_hourly_mean, df_hourly
 
+    # Now run for each utility
+    utilities = ["PGE", "SCE", "SDGE", "SMUD"]
+    home_tariffs = ["RT", "TOU", "EV"]
+    results = {}
 
-    return df_aggregated, df_hourly_mean, df_hourly
+    for utility in utilities:
+        rt_rate, tou_price, ev_price, commercial_price = get_utility_prices(utility)
 
+        # Convert each dict to int keys
+        rt_rate_int = convert_to_int_keys(rt_rate)
+        tou_price_int = convert_to_int_keys(tou_price)
+        ev_price_int = convert_to_int_keys(ev_price)
+        commercial_price_int = convert_to_int_keys(commercial_price)
 
-RT_cost, RT_cost_hourly, RT_cost_hourly_in = price_curve(BEV_load_curve, RT_PGE, GHG_dict, 560, 0.021)
-TOU_cost, TOU_cost_hourly, TOU_cost_hourly_in = price_curve(BEV_load_curve, tou_prices, GHG_dict, 560, 0.021)
-EV_rate_cost, EV_cost_hourly, EV_cost_hourly_in = price_curve(BEV_load_curve, ev_rate_prices, GHG_dict, 560, 0.021)
+        results[utility] = {}
+
+        for home_tariff in home_tariffs:
+            if home_tariff == "RT":
+                home_price_dict = rt_rate_int
+            elif home_tariff == "TOU":
+                home_price_dict = tou_price_int
+            else:  # "EV"
+                home_price_dict = ev_price_int
+
+            df_agg, df_hourly_mean, df_hourly_in = price_curve(
+                vehicle_data=vehicle_data,
+                home_price=home_price_dict,
+                commercial_price=commercial_price_int,
+                ghg=ghg_dict_int,
+                dc_fast_price=dc_fast_price,
+                degradation_slope=degradation_slope
+            )
+
+            # Store them in the results dictionary
+            results[utility][home_tariff] = (df_agg, df_hourly_mean, df_hourly_in)
+
+            # --- Save DataFrames to Excel in your naming format ---
+            # 1) Aggregated = _cost
+            cost_file = f"{output_prefix}_{utility}_{home_tariff}_cost.xlsx"
+            with pd.ExcelWriter(cost_file, engine='xlsxwriter') as writer:
+                df_agg.to_excel(writer, sheet_name='Individual Costs', index=False)
+            print(f"{home_tariff}_cost saved for {utility}: {cost_file}")
+
+            # 2) Hourly Mean = _cost_hourly
+            cost_hourly_file = f"{output_prefix}_{utility}_{home_tariff}_cost_hourly.xlsx"
+            with pd.ExcelWriter(cost_hourly_file, engine='xlsxwriter') as writer:
+                df_hourly_mean.to_excel(writer, sheet_name='Individual Costs', index=False)
+            print(f"{home_tariff}_cost_hourly saved for {utility}: {cost_hourly_file}")
+
+            # 3) Hourly Detail = _cost_hourly_in
+            cost_hourly_in_file = f"{output_prefix}_{utility}_{home_tariff}_cost_hourly_in.xlsx"
+            with pd.ExcelWriter(cost_hourly_in_file, engine='xlsxwriter') as writer:
+                df_hourly_in.to_excel(writer, sheet_name='Individual Costs', index=False)
+            print(f"{home_tariff}_cost_hourly_in saved for {utility}: {cost_hourly_in_file}")
+
+    return results
 
 # %%
-# Define the file paths
-rt_cost_file = 'Actual_RT_cost.xlsx'
-tou_cost_file = 'Actual_TOU_cost.xlsx'
-ev_rate_cost_file = 'Actual_EV_rate_cost.xlsx'
-
-# Save RT_cost to an Excel file
-with pd.ExcelWriter(rt_cost_file, engine='xlsxwriter') as writer:
-    RT_cost.to_excel(writer, sheet_name='Individual Costs')
-print(f"RT_cost saved: {rt_cost_file}")
-
-# Save TOU_cost to an Excel file
-with pd.ExcelWriter(tou_cost_file, engine='xlsxwriter') as writer:
-    TOU_cost.to_excel(writer, sheet_name='Individual Costs')
-print(f"TOU_cost saved: {tou_cost_file}")
-
-# Save EV_rate_cost to an Excel file
-with pd.ExcelWriter(ev_rate_cost_file, engine='xlsxwriter') as writer:
-    EV_rate_cost.to_excel(writer, sheet_name='Individual Costs')
-print(f"EV_rate_cost saved: {ev_rate_cost_file}")
-
-rt_cost_file_hourly = 'Actual_RT_cost_hourly.xlsx'
-tou_cost_file_hourly = 'Actual_TOU_cost_hourly.xlsx'
-ev_rate_cost_file_hourly = 'Actual_EV_rate_cost_hourly.xlsx'
-
-# Save RT_cost to an Excel file
-with pd.ExcelWriter(rt_cost_file_hourly, engine='xlsxwriter') as writer:
-    RT_cost_hourly.to_excel(writer, sheet_name='Individual Costs')
-print(f"RT_cost saved: {rt_cost_file_hourly}")
-
-# Save TOU_cost to an Excel file
-with pd.ExcelWriter(tou_cost_file_hourly, engine='xlsxwriter') as writer:
-    TOU_cost_hourly.to_excel(writer, sheet_name='Individual Costs')
-print(f"TOU_cost saved: {tou_cost_file_hourly}")
-
-# Save EV_rate_cost to an Excel file
-with pd.ExcelWriter(ev_rate_cost_file_hourly, engine='xlsxwriter') as writer:
-    EV_cost_hourly.to_excel(writer, sheet_name='Individual Costs')
-print(f"EV_rate_cost saved: {ev_rate_cost_file_hourly}")
 
 
-rt_cost_file_hourly_in = 'Actual_RT_cost_hourly_in.xlsx'
-tou_cost_file_hourly_in = 'Actual_TOU_cost_hourly_in.xlsx'
-ev_rate_cost_file_hourly_in = 'Actual_EV_rate_cost_hourly_in.xlsx'
-
-# Save RT_cost to an Excel file
-with pd.ExcelWriter(rt_cost_file_hourly_in, engine='xlsxwriter') as writer:
-    RT_cost_hourly_in.to_excel(writer, sheet_name='Individual Costs')
-print(f"RT_cost saved: {rt_cost_file_hourly_in}")
-
-# Save TOU_cost to an Excel file
-with pd.ExcelWriter(tou_cost_file_hourly_in, engine='xlsxwriter') as writer:
-    TOU_cost_hourly_in.to_excel(writer, sheet_name='Individual Costs')
-print(f"TOU_cost saved: {tou_cost_file_hourly_in}")
-
-# Save EV_rate_cost to an Excel file
-with pd.ExcelWriter(ev_rate_cost_file_hourly_in, engine='xlsxwriter') as writer:
-    EV_cost_hourly_in.to_excel(writer, sheet_name='Individual Costs')
-print(f"EV_rate_cost saved: {ev_rate_cost_file_hourly_in}")
-
+results = run_and_save_all_utilities(
+    vehicle_data=BEV_load_curve,   # your vehicle data dictionary
+    ghg_dict=GHG_dict,            # your GHG emission factors dictionary
+    dc_fast_price=560,            # example DC fast price
+    degradation_slope=0.021,      # example degradation factor
+    output_prefix="Actual"        # optional prefix for filenames
+)
 df.to_pickle('demand_curve.pkl')

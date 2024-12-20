@@ -14,6 +14,9 @@ import numpy as np
 import matplotlib.ticker as ticker
 from matplotlib.patches import Patch
 from matplotlib.ticker import FuncFormatter
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+
 ##################################################################################################################
 ##################################################################################################################
 # %%
@@ -22,6 +25,7 @@ mpl.rcParams['font.sans-serif'] = "Helvetica"
 mpl.rcParams['font.family'] = "sans-serif"
 # If Helvetica is not available, fallback to Arial
 mpl.rcParams['font.sans-serif'] = ["Helvetica", "Arial"]
+
 
 def read_clean(value):
     home_dir = os.path.expanduser("~")
@@ -92,8 +96,6 @@ def read_clean(value):
     data2 = data2[data2["vehicle_name"] == value]
     data2 = data2.sort_values(by="ts_start")
     return data2
-##################################################################################################################
-##################################################################################################################
 
 
 def clean_data(input_data):
@@ -102,7 +104,7 @@ def clean_data(input_data):
     for vehicle_name in vehicle_names:
         df_full_trips = read_clean(vehicle_name)  # done
         df_full_trips_short = trip_summary(df_full_trips)  # done
-        df_soc_req = soc_next(df_full_trips_short) # done
+        df_soc_req = soc_next(df_full_trips_short)  # done
         # Failed Next Trip
         df_soc_req["f_next_trip"] = df_soc_req["battery[soc][start][trip]"].shift(-1) - df_soc_req["SOC_next_trip"]
         # Failed Next Charging
@@ -115,8 +117,6 @@ def clean_data(input_data):
         df_soc_req["end_time_charging"] = df_soc_req["end_time_charging"].dt.strftime('%Y-%m-%d %H:%M:%S%z')
         df = pd.concat([df, df_soc_req], axis=0, ignore_index=True)
     return df
-##################################################################################################################
-##################################################################################################################
 
 
 # Function to extract characters after the last "_" or " "
@@ -146,13 +146,11 @@ def adjust_battery_size(row):
 
     # If no specific size is found or model does not start with 'Model S', return the previous size
     return previous_battery_size
-##################################################################################################################
-##################################################################################################################
 
 
 def trip_summary(df):
     data3 = df[["ts_start", "ts_end", "start_time_local", "end_time_local", "Model", "vehicle_name", "vehicle_model", "year", "month", "day", "hour", "duration_trip", "distance", "battery[soc][start][trip]",
-               "battery[soc][end][trip]", "Lat", "Long", "destination_label", "origin_label", "Energy_charged", "energy[charge_type][type]", "battery[soc][start][charging]", "battery[soc][end][charging]", "start_time", "end_time", "duration_charging"]].copy()
+                "battery[soc][end][trip]", "Lat", "Long", "destination_label", "origin_label", "Energy_charged", "energy[charge_type][type]", "battery[soc][start][charging]", "battery[soc][end][charging]", "start_time", "end_time", "duration_charging"]].copy()
     ""
     data3 = data3.rename(columns={'start_time': 'start_time_charging'})
     data3 = data3.rename(columns={'end_time': 'end_time_charging'})
@@ -174,11 +172,8 @@ def trip_summary(df):
     # data3["bat_cap"] = data3.apply(adjust_battery_size, axis=1)
 
     return data3
-##################################################################################################################
-##################################################################################################################
 
 
-# selecting only the trips that have charging session at the end
 def charging_dataframe(df, time):
     # trip_data = pd.read_csv("data.csv")
     # df= trip_data.copy()
@@ -190,8 +185,6 @@ def charging_dataframe(df, time):
     final_dataframes_charging = v2g_draw(final_dataframes_charging)
     # final_dataframes_charging = final_dataframes_charging.loc[final_dataframes_charging["V2G_time_min"] >= time]
     return final_dataframes_charging
-##################################################################################################################
-##################################################################################################################
 
 
 def draw_parking(df):
@@ -237,8 +230,6 @@ def draw_parking(df):
     plt.show()
 
 
-##################################################################################################################
-##################################################################################################################
 def draw_charging(df):
     # Calculate average time spent at each location
     df = df[~df["duration_charging_min"].isna()]
@@ -290,9 +281,8 @@ def draw_charging(df):
     # Save the plot as an image file (e.g., PNG)
     plt.savefig('bubble_chart_with_charging.png', bbox_inches='tight')
     plt.show()
-##################################################################################################################
-##################################################################################################################
-# %%
+
+
 def draw_combined(df):
     # Calculate average time spent at each location for parking and charging
     df_parking = df.groupby(['origin_label', 'destination_label'])['parking_time_minute'].mean().reset_index(name='Average Parking Time')
@@ -391,9 +381,6 @@ def draw_combined(df):
     plt.show()
 
 
-# %%
-
-
 def draw_multilevel_pie(df, text_size=13):
     df1 = df.copy()
     df1["duration_charging_min"] = df1["duration_charging_min"].fillna(0)
@@ -443,7 +430,7 @@ def draw_multilevel_pie(df, text_size=13):
     # Function to calculate luminance
     def get_text_color(color):
         r, g, b = color[:3]
-        luminance = 0.2126*r + 0.7152*g + 0.0722*b  # Calculate luminance
+        luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b  # Calculate luminance
         return 'black' if luminance > 0.5 else 'white'
 
     # Step 3: Plot the pie chart with nested proportions
@@ -462,17 +449,17 @@ def draw_multilevel_pie(df, text_size=13):
     # Set percentage text to white for inner circle
     for autotext, color in zip(autotexts_inner, inner_colors):
         autotext.set_color(get_text_color(color))
-        autotext.set_fontsize(text_size+2)
+        autotext.set_fontsize(text_size + 2)
 
     # Draw the outer circle (Plugged-in and Parking) with colors based on charging duration
     wedges_outer, texts_outer, autotexts_outer = ax.pie(outer_ratios, radius=1.5, labels=outer_labels, colors=outer_colors,
                                                         wedgeprops=dict(width=0.6, edgecolor='w'), autopct='%1.1f%%',
-                                                        pctdistance=0.8, textprops={'fontsize': text_size+2})
+                                                        pctdistance=0.8, textprops={'fontsize': text_size + 2})
 
     # Set percentage text to white for outer circle
     for autotext, color in zip(autotexts_outer, outer_colors):
         autotext.set_color(get_text_color(color))
-        autotext.set_fontsize(text_size+2)
+        autotext.set_fontsize(text_size + 2)
 
     # Add color bars for both inner and outer circles
     sm_inner = plt.cm.ScalarMappable(cmap=inner_palette, norm=norm_inner)
@@ -488,9 +475,6 @@ def draw_multilevel_pie(df, text_size=13):
     plt.savefig('multilevel_pie_chart.png', bbox_inches='tight', dpi=600)
     plt.show()
 
-##################################################################################################################
-##################################################################################################################
-# %%
 
 def draw_parking_boxplots(df):
     # Assuming 'final_dataframes' is your DataFrame
@@ -534,9 +518,6 @@ def draw_parking_boxplots(df):
     # Show the plot
     plt.savefig('soc.png', bbox_inches='tight')
     plt.show()
-
-##################################################################################################################
-##################################################################################################################
 
 
 def soc_next(df):
@@ -611,8 +592,6 @@ def soc_next(df):
     df["SOC_need_next_charge"] = df.groupby("charge_type_count")["SOC_Diff"].transform(lambda x: x[::-1].cumsum()[::-1]).shift(-1)
     df = df.iloc[:-1]
     return df
-##################################################################################################################
-##################################################################################################################
 
 
 def charging_selection(df):
@@ -630,15 +609,11 @@ def charging_selection(df):
     # Fill NaN values in 'end_time_charging' with 'next_departure_time'
     final_df_charging['end_time_charging'].fillna(final_df_charging['next_departure_time'], inplace=True)
 
-
     # Calculate minimum range for different scenarios
     final_df_charging["minrange"] = (final_df_charging["bat_cap"] * (final_df_charging["battery[soc][end][charging]"] / 100)) / 0.28
     final_df_charging["minrange_need"] = (final_df_charging["bat_cap"] * (final_df_charging["SOC_next_trip"] / 100)) / 0.28
     final_df_charging["minrange_need_nextc"] = (final_df_charging["bat_cap"] * (final_df_charging["SOC_need_next_charge"] / 100)) / 0.28
     return final_df_charging
-
-##################################################################################################################
-##################################################################################################################
 
 
 def charging_speed(df):
@@ -647,8 +622,6 @@ def charging_speed(df):
     df.loc[(df["charging_speed"] > 1.6) & (df["charging_speed"] < 21), "charge_type"] = "LEVEL_2"
     df.loc[df["charging_speed"] >= 21, "charge_type"] = "DC_FAST"
     return df
-##################################################################################################################
-##################################################################################################################
 
 
 def range_indicator(df):
@@ -657,8 +630,6 @@ def range_indicator(df):
     # next charging sessions fail indicator
     df.loc[:, "next_c_fail"] = df.loc[:, "minrange"] < df.loc[:, "minrange_need_nextc"]
     return df
-##################################################################################################################
-##################################################################################################################
 
 
 def v2g_draw(df):
@@ -722,27 +693,23 @@ def v2g_draw(df):
     plt.tight_layout()
     plt.show()
     return df
-##################################################################################################################
-##################################################################################################################
 
 
 def V2G_cap_ch_r(df):
     # level 2 12
     df["V2G_SOC_half_12k"] = (((df["battery[soc][end][charging]"] / 100) * df["bat_cap"]) - ((df["V2G_time_min"] / 60) / 2) * 12) / (df["bat_cap"]) * 100
     df.loc[df["V2G_SOC_half_12k"] < 0, "V2G_SOC_half_12k"] = 0
-    df["V2G_cap_12k"] = (abs(df["V2G_SOC_half_12k"]-df["battery[soc][end][charging]"])/100)*df["bat_cap"]
+    df["V2G_cap_12k"] = (abs(df["V2G_SOC_half_12k"] - df["battery[soc][end][charging]"]) / 100) * df["bat_cap"]
     # with Level 2
     # Assuming df is your DataFrame
-    df["V2G_SOC_half_6k"] = (((df["battery[soc][end][charging]"] / 100) * df["bat_cap"]) - ((df["V2G_time_min"]/60)/2) * 6.6) / (df["bat_cap"]) * 100
+    df["V2G_SOC_half_6k"] = (((df["battery[soc][end][charging]"] / 100) * df["bat_cap"]) - ((df["V2G_time_min"] / 60) / 2) * 6.6) / (df["bat_cap"]) * 100
     df.loc[df["V2G_SOC_half_6k"] < 0, "V2G_SOC_half_6k"] = 0
-    df["V2G_cap_6k"] = (abs(df["V2G_SOC_half_6k"]-df["battery[soc][end][charging]"]) / 100) * df["bat_cap"]
+    df["V2G_cap_6k"] = (abs(df["V2G_SOC_half_6k"] - df["battery[soc][end][charging]"]) / 100) * df["bat_cap"]
     # Assuming df is your DataFrame
-    df["V2G_SOC_half_19k"] = (((df["battery[soc][end][charging]"] / 100) * df["bat_cap"]) - ((df["V2G_time_min"]/60)/2) * 19) / (df["bat_cap"]) * 100
+    df["V2G_SOC_half_19k"] = (((df["battery[soc][end][charging]"] / 100) * df["bat_cap"]) - ((df["V2G_time_min"] / 60) / 2) * 19) / (df["bat_cap"]) * 100
     df.loc[df["V2G_SOC_half_19k"] < 0, "V2G_SOC_half_19k"] = 0
     df["V2G_cap_19k"] = (abs(df["V2G_SOC_half_19k"] - (df["battery[soc][end][charging]"])) / 100) * df["bat_cap"]
     return df
-##################################################################################################################
-##################################################################################################################
 
 
 def V2G_cap_soc_r5(df):
@@ -756,7 +723,7 @@ def V2G_cap_soc_r5(df):
     df1.loc[df1["V2G_SOC_half_12k"] < 0, "V2G_SOC_half_12k"] = 0
     df1["V2G_cap_12k"] = (abs(df1["V2G_SOC_half_12k"] - (df1["battery[soc][end][charging]"] + 5)) / 100) * df1["bat_cap"]
     # Assuming df1 is your DataFrame
-    df1["V2G_SOC_half_6k"] = (((df1["battery[soc][end][charging]"] / 100) * df1["bat_cap"]) - ((df1["V2G_time_min"] / 60) / 2) * 6.6) / (df1["bat_cap"])*100
+    df1["V2G_SOC_half_6k"] = (((df1["battery[soc][end][charging]"] / 100) * df1["bat_cap"]) - ((df1["V2G_time_min"] / 60) / 2) * 6.6) / (df1["bat_cap"]) * 100
     df1.loc[df1["V2G_SOC_half_6k"] < 0, "V2G_SOC_half_6k"] = 0
     df1["V2G_cap_6k"] = (abs(df1["V2G_SOC_half_6k"] - (df1["battery[soc][end][charging]"] + 5)) / 100) * df1["bat_cap"]
     # Assuming df1 is your DataFrame
@@ -764,8 +731,6 @@ def V2G_cap_soc_r5(df):
     df1.loc[df1["V2G_SOC_half_19k"] < 0, "V2G_SOC_half_19k"] = 0
     df1["V2G_cap_19k"] = (abs(df1["V2G_SOC_half_19k"] - (df1["battery[soc][end][charging]"] + 5)) / 100) * df1["bat_cap"]
     return df1
-##################################################################################################################
-##################################################################################################################
 
 
 def V2G_cap_soc_r10(df):
@@ -787,8 +752,6 @@ def V2G_cap_soc_r10(df):
     df1.loc[df1["V2G_SOC_half_19k"] < 0, "V2G_SOC_half_19k"] = 0
     df1["V2G_cap_19k"] = (abs(df1["V2G_SOC_half_19k"] - (df1["battery[soc][end][charging]"] + 10)) / 100) * df1["bat_cap"]
     return df1
-##################################################################################################################
-##################################################################################################################
 
 
 def storage_cap(df):
@@ -845,8 +808,6 @@ def storage_cap(df):
     V2G_hourly_19 = pd.merge(df[["month", "day"]], V2G_hourly_19, how="left", left_index=True, right_index=True)
     V2G_hourly_19_sum = V2G_hourly_19.groupby(["month", "day"]).sum()
     return V2G_hourly_12, V2G_hourly_6, V2G_hourly_19, V2G_hourly_12_sum, V2G_hourly_6_sum, V2G_hourly_19_sum
-##################################################################################################################
-##################################################################################################################
 
 
 def v2g_cap_plot(df1, df2, df3):
@@ -862,8 +823,6 @@ def v2g_cap_plot(df1, df2, df3):
     plt.grid(True)
     # Show the plot
     plt.show()
-##################################################################################################################
-##################################################################################################################
 
 
 def heat_plot(df):
@@ -888,8 +847,6 @@ def heat_plot(df):
     plt.tight_layout()
     # Show the plot
     plt.show()
-##################################################################################################################
-##################################################################################################################
 
 
 def box_plot_with_stats_for_three(df_box, labels, ymin1, ymax1):
@@ -918,8 +875,6 @@ def box_plot_with_stats_for_three(df_box, labels, ymin1, ymax1):
         ax.legend(loc="upper right", fontsize=20)
         # Show the plot
         plt.show()
-##################################################################################################################
-##################################################################################################################
 
 
 def V2G_cap_ch_r_mc(df):
@@ -929,7 +884,7 @@ def V2G_cap_ch_r_mc(df):
     # current speed
     df["V2G_SOC_half_12k"] = (((df["battery[soc][end][charging]"] / 100) * df["bat_cap"]) - ((df["V2G_time_min"] / 60) / 2) * 12) / (df["bat_cap"]) * 100
     df.loc[df["V2G_SOC_half_12k"] < 0, "V2G_SOC_half_12k"] = 0
-    df["V2G_cap_12k"] = (abs(df["V2G_SOC_half_12k"]-df["battery[soc][end][charging]"])/100) * df["bat_cap"]
+    df["V2G_cap_12k"] = (abs(df["V2G_SOC_half_12k"] - df["battery[soc][end][charging]"]) / 100) * df["bat_cap"]
     df["V2G_cycle_12k_time"] = (((df["battery[soc][end][charging]"] / 100) * df["bat_cap"]) / 12) * 2
     df.replace({float('inf'): 0, float('-inf'): 0, pd.NaT: 0}, inplace=True)
     df.loc[df["V2G_cycle_12k_time"] < 0, "V2G_cycle_12k_time"] = 0
@@ -938,9 +893,9 @@ def V2G_cap_ch_r_mc(df):
     df.loc[df["V2G_max_cycle_12k"] != 0, "V2G_cap_12k"] *= df["V2G_max_cycle_12k"]
 
     # Assuming df is your DataFrame
-    df["V2G_SOC_half_6k"] = (((df["battery[soc][end][charging]"] / 100) * df["bat_cap"]) - ((df["V2G_time_min"]/60)/2) * 6.6) / (df["bat_cap"]) * 100
+    df["V2G_SOC_half_6k"] = (((df["battery[soc][end][charging]"] / 100) * df["bat_cap"]) - ((df["V2G_time_min"] / 60) / 2) * 6.6) / (df["bat_cap"]) * 100
     df.loc[df["V2G_SOC_half_6k"] < 0, "V2G_SOC_half_6k"] = 0
-    df["V2G_cap_6k"] = (abs(df["V2G_SOC_half_6k"]-df["battery[soc][end][charging]"])/100) * df["bat_cap"]
+    df["V2G_cap_6k"] = (abs(df["V2G_SOC_half_6k"] - df["battery[soc][end][charging]"]) / 100) * df["bat_cap"]
     df["V2G_cycle_6k_time"] = (((df["battery[soc][end][charging]"] / 100) * df["bat_cap"]) / (6.6)) * 2
     df.replace({float('inf'): 0, float('-inf'): 0, pd.NaT: 0}, inplace=True)
     df["V2G_max_cycle_6k"] = df.apply(lambda row: math.floor((row["V2G_time_min"] / 60) / row["V2G_cycle_6k_time"]) if row["V2G_cycle_6k_time"] != 0 else 0, axis=1)
@@ -948,17 +903,15 @@ def V2G_cap_ch_r_mc(df):
     df.loc[df["V2G_max_cycle_6k"] != 0, "V2G_cap_6k"] *= df["V2G_max_cycle_6k"]
 
     # Assuming df is your DataFrame
-    df["V2G_SOC_half_19k"] = (((df["battery[soc][end][charging]"] / 100) * df["bat_cap"]) - ((df["V2G_time_min"]/60)/2) * 19) / (df["bat_cap"]) * 100
+    df["V2G_SOC_half_19k"] = (((df["battery[soc][end][charging]"] / 100) * df["bat_cap"]) - ((df["V2G_time_min"] / 60) / 2) * 19) / (df["bat_cap"]) * 100
     df.loc[df["V2G_SOC_half_19k"] < 0, "V2G_SOC_half_19k"] = 0
-    df["V2G_cap_19k"] = (abs(df["V2G_SOC_half_19k"]-df["battery[soc][end][charging]"])/100) * df["bat_cap"]
+    df["V2G_cap_19k"] = (abs(df["V2G_SOC_half_19k"] - df["battery[soc][end][charging]"]) / 100) * df["bat_cap"]
     df["V2G_cycle_19k_time"] = (((df["battery[soc][end][charging]"] / 100) * df["bat_cap"]) / 19) * 2
     df.replace({float('inf'): 0, float('-inf'): 0, pd.NaT: 0}, inplace=True)
     df["V2G_max_cycle_19k"] = df.apply(lambda row: math.floor((row["V2G_time_min"] / 60) / row["V2G_cycle_19k_time"]) if row["V2G_cycle_19k_time"] != 0 else 0, axis=1)
     df.loc[df["V2G_max_cycle_19k"] < 0, "V2G_max_cycle_19k"] = 0
     df.loc[df["V2G_max_cycle_19k"] != 0, "V2G_cap_19k"] *= df["V2G_max_cycle_19k"]
     return df
-##################################################################################################################
-##################################################################################################################
 
 
 def V2G_cap_soc_r5_mc(df):
@@ -974,7 +927,7 @@ def V2G_cap_soc_r5_mc(df):
     df1["V2G_SOC_half_12k"] = (((df1["battery[soc][end][charging]"] / 100) * df1["bat_cap"]) - ((df1["V2G_time_min"] / 60) / 2) * 12) / (df1["bat_cap"]) * 100
     df1.loc[df1["V2G_SOC_half_12k"] < 0, "V2G_SOC_half_12k"] = 0
     df1["V2G_cap_12k"] = (abs(df1["V2G_SOC_half_12k"] - (df1["battery[soc][end][charging]"] + 5)) / 100) * df1["bat_cap"]
-    df1["V2G_cycle_12k_time"] = (((df1["battery[soc][end][charging]"] / 100) * df1["bat_cap"]) /12) + ((((df1["battery[soc][end][charging]"] - 5) / 100) * df1["bat_cap"]) / 12)
+    df1["V2G_cycle_12k_time"] = (((df1["battery[soc][end][charging]"] / 100) * df1["bat_cap"]) / 12) + ((((df1["battery[soc][end][charging]"] - 5) / 100) * df1["bat_cap"]) / 12)
     df1.replace({float('inf'): 0, float('-inf'): 0, pd.NaT: 0}, inplace=True)
     df1.loc[df1["V2G_cycle_12k_time"] < 0, "V2G_cycle_12k_time"] = 0
     df1["V2G_max_cycle_12k"] = df1.apply(lambda row: math.floor((row["V2G_time_min"] / 60) / row["V2G_cycle_12k_time"]) if row["V2G_cycle_12k_time"] != 0 else 0, axis=1)
@@ -982,7 +935,7 @@ def V2G_cap_soc_r5_mc(df):
     df1.loc[df1["V2G_max_cycle_12k"] != 0, "V2G_cap_12k"] *= df1["V2G_max_cycle_12k"]
 
     # Assuming df1 is your DataFrame
-    df1["V2G_SOC_half_6k"] = (((df1["battery[soc][end][charging]"] / 100) * df1["bat_cap"]) - ((df1["V2G_time_min"] / 60) / 2) * 6.6) / (df1["bat_cap"])*100
+    df1["V2G_SOC_half_6k"] = (((df1["battery[soc][end][charging]"] / 100) * df1["bat_cap"]) - ((df1["V2G_time_min"] / 60) / 2) * 6.6) / (df1["bat_cap"]) * 100
     df1.loc[df1["V2G_SOC_half_6k"] < 0, "V2G_SOC_half_6k"] = 0
     df1["V2G_cap_6k"] = (abs(df1["V2G_SOC_half_6k"] - (df1["battery[soc][end][charging]"] + 5)) / 100) * df1["bat_cap"]
     df1["V2G_cycle_6k_time"] = (((df1["battery[soc][end][charging]"] / 100) * df1["bat_cap"]) / 6.6) + ((((df1["battery[soc][end][charging]"] - 5) / 100) * df1["bat_cap"]) / 6.6)
@@ -1001,8 +954,6 @@ def V2G_cap_soc_r5_mc(df):
     df1.loc[df1["V2G_max_cycle_19k"] < 0, "V2G_max_cycle_19k"] = 0
     df1.loc[df1["V2G_max_cycle_19k"] != 0, "V2G_cap_19k"] *= df1["V2G_max_cycle_19k"]
     return df1
-##################################################################################################################
-##################################################################################################################
 
 
 def V2G_cap_soc_r10_mc(df):
@@ -1045,8 +996,6 @@ def V2G_cap_soc_r10_mc(df):
     df1.loc[df1["V2G_max_cycle_19k"] < 0, "V2G_max_cycle_19k"] = 0
     df1.loc[df1["V2G_max_cycle_19k"] != 0, "V2G_cap_19k"] *= df1["V2G_max_cycle_19k"]
     return df1
-##################################################################################################################
-##################################################################################################################
 
 
 def v2g_normal(df):
@@ -1061,8 +1010,6 @@ def v2g_normal(df):
     V2G_hourly_6_sum_reset = V2G_hourly_6_sum.reset_index(drop=False).drop("month", axis=1).groupby("day").sum()
     V2G_hourly_19_sum_reset = V2G_hourly_19_sum.reset_index(drop=False).drop("month", axis=1).groupby("day").sum()
     return V2G_cap_charging_rate, V2G_hourly_12, V2G_hourly_6, V2G_hourly_19, V2G_hourly_12_sum, V2G_hourly_6_sum, V2G_hourly_19_sum, V2G_hourly_12_sum_reset, V2G_hourly_6_sum_reset, V2G_hourly_19_sum_reset
-##################################################################################################################
-##################################################################################################################
 
 
 def v2g_r5(df):
@@ -1080,8 +1027,6 @@ def v2g_r5(df):
     V2G_hourly_19_sum_reset_s5 = V2G_hourly_19_sum_s5.reset_index(drop=False).drop("month", axis=1).groupby("day")
     V2G_hourly_19_sum_reset_s5 = V2G_hourly_19_sum_reset_s5.sum()
     return V2G_cap_soc_rate5, V2G_hourly_12_s5, V2G_hourly_6_s5, V2G_hourly_19_s5, V2G_hourly_12_sum_s5, V2G_hourly_6_sum_s5, V2G_hourly_19_sum_s5, V2G_hourly_12_sum_reset_s5, V2G_hourly_6_sum_reset_s5, V2G_hourly_19_sum_reset_s5
-##################################################################################################################
-##################################################################################################################
 
 
 def v2g_r10(df):
@@ -1096,8 +1041,6 @@ def v2g_r10(df):
     V2G_hourly_6_sum_reset_s10 = V2G_hourly_6_sum_s10.reset_index(drop=False).drop("month", axis=1).groupby("day").sum()
     V2G_hourly_19_sum_reset_s10 = V2G_hourly_19_sum_s10.reset_index(drop=False).drop("month", axis=1).groupby("day").sum()
     return V2G_cap_soc_rate10, V2G_hourly_12_s10, V2G_hourly_6_s10, V2G_hourly_19_s10, V2G_hourly_12_sum_s10, V2G_hourly_6_sum_s10, V2G_hourly_19_sum_s10, V2G_hourly_12_sum_reset_s10, V2G_hourly_6_sum_reset_s10, V2G_hourly_19_sum_reset_s10
-##################################################################################################################
-##################################################################################################################
 
 
 def v2g_normal_mc(df):
@@ -1113,8 +1056,6 @@ def v2g_normal_mc(df):
     V2G_hourly_6_sum_reset_mc = V2G_hourly_6_sum_mc.reset_index(drop=False).drop("month", axis=1).groupby("day").sum()
     V2G_hourly_19_sum_reset_mc = V2G_hourly_19_sum_mc.reset_index(drop=False).drop("month", axis=1).groupby("day").sum()
     return V2G_cap_charging_rate_mc, V2G_hourly_12_mc, V2G_hourly_6_mc, V2G_hourly_19_mc, V2G_hourly_12_sum_mc, V2G_hourly_6_sum_mc, V2G_hourly_19_sum_mc, V2G_hourly_12_sum_reset_mc, V2G_hourly_6_sum_reset_mc, V2G_hourly_19_sum_reset_mc
-##################################################################################################################
-##################################################################################################################
 
 
 def v2g_r5_mc(df):
@@ -1130,8 +1071,6 @@ def v2g_r5_mc(df):
     V2G_hourly_6_sum_reset_s5_mc = V2G_hourly_6_sum_s5_mc.reset_index(drop=False).drop("month", axis=1).groupby("day").sum()
     V2G_hourly_19_sum_reset_s5_mc = V2G_hourly_19_sum_s5_mc.reset_index(drop=False).drop("month", axis=1).groupby("day").sum()
     return V2G_cap_soc_rate5_mc, V2G_hourly_12_s5_mc, V2G_hourly_6_s5_mc, V2G_hourly_19_s5_mc, V2G_hourly_12_sum_s5_mc, V2G_hourly_6_sum_s5_mc, V2G_hourly_19_sum_s5_mc, V2G_hourly_12_sum_reset_s5_mc, V2G_hourly_6_sum_reset_s5_mc, V2G_hourly_19_sum_reset_s5_mc
-##################################################################################################################
-##################################################################################################################
 
 
 def v2g_r10_mc(df):
@@ -1146,8 +1085,6 @@ def v2g_r10_mc(df):
     V2G_hourly_6_sum_reset_s10_mc = V2G_hourly_6_sum_s10_mc.reset_index(drop=False).drop("month", axis=1).groupby("day").sum()
     V2G_hourly_19_sum_reset_s10_mc = V2G_hourly_19_sum_s10_mc.reset_index(drop=False).drop("month", axis=1).groupby("day").sum()
     return V2G_cap_soc_rate10_mc, V2G_hourly_12_s10_mc, V2G_hourly_6_s10_mc, V2G_hourly_19_s10_mc, V2G_hourly_12_sum_s10_mc, V2G_hourly_6_sum_s10_mc, V2G_hourly_19_sum_s10_mc, V2G_hourly_12_sum_reset_s10_mc, V2G_hourly_6_sum_reset_s10_mc, V2G_hourly_19_sum_reset_s10_mc
-##################################################################################################################
-##################################################################################################################
 
 
 def total_storage(df1, df2, df3, df1_r5, df2_r5, df3_r5, df1_r10, df2_r10, df3_r10):
@@ -1158,8 +1095,6 @@ def total_storage(df1, df2, df3, df1_r5, df2_r5, df3_r5, df1_r10, df2_r10, df3_r
     df_summary_storage = pd.DataFrame(data, index=['Total', 'Total_s5', 'Total_s10']).T
 
     return df_summary_storage
-##################################################################################################################
-##################################################################################################################
 
 
 def total_storage_tou(df1, df2, df3):
@@ -1170,8 +1105,6 @@ def total_storage_tou(df1, df2, df3):
     df_summary_storage = pd.DataFrame(data, index=['Total']).T
 
     return df_summary_storage
-##################################################################################################################
-##################################################################################################################
 
 
 def failure_estimation(df1, df2):
@@ -1181,13 +1114,11 @@ def failure_estimation(df1, df2):
     ratio10_nt = df2["next_trip_fail"].value_counts(normalize=True)
     ratio10_nc = df2["next_c_fail"].value_counts(normalize=True)
 
-    data = {'ratio5': [ratio5_nt[1]*100, ratio5_nc[1]*100],
-            'ratio10': [ratio10_nt[1]*100, ratio10_nc[1]*100]}
+    data = {'ratio5': [ratio5_nt[1] * 100, ratio5_nc[1] * 100],
+            'ratio10': [ratio10_nt[1] * 100, ratio10_nc[1] * 100]}
     data = pd.DataFrame(data, index=['next_trip', 'next_charging']).T
 
     return data
-##################################################################################################################
-##################################################################################################################
 
 
 def total_capacity(df):
@@ -1196,8 +1127,6 @@ def total_capacity(df):
     return total_cap
 
 
-##################################################################################################################
-##################################################################################################################
 def charging_c_k(df):
     df1 = df.copy()
     df1["charging_cap"] = ((df1["battery[soc][end][charging]"] - df1["battery[soc][start][charging]"]) / 100) * df["bat_cap"]
@@ -1228,8 +1157,6 @@ def charging_c_st(df):
     return df1
 
 
-##################################################################################################################
-##################################################################################################################
 def charging_c_k_mc(df):
     df1 = df.copy()
     df1["charging_cap"] = ((df1["battery[soc][end][charging]"] - df1["battery[soc][start][charging]"]) / 100) * df["bat_cap"]
@@ -1245,8 +1172,6 @@ def charging_c_k_mc(df):
     return df1
 
 
-##################################################################################################################
-##################################################################################################################
 def charging_c_k_tou(df):
     df1 = df.copy()
     df1["charging_cap"] = ((df1["battery[soc][end][charging]"] - df1["battery[soc][start][charging]"]) / 100) * df["bat_cap"]
@@ -1307,8 +1232,6 @@ def charging_c_k_tou_real(df):
     return df1
 
 
-##################################################################################################################
-##################################################################################################################
 # Define peak time slots
 def is_peak_time(hour, minute):
     for start, end in peak_time_slots:
@@ -1322,7 +1245,6 @@ peak_time_slots = [(16, 21)]  # Peak time slots from 4 PM to 9 PM
 
 # Function to calculate start and end time of discharging and charging
 def calculate_v2g(row):
-
     discharge_start = row['end_time_charging']
     discharge_hour = discharge_start.hour
     discharge_minute = discharge_start.minute
@@ -1490,11 +1412,9 @@ def calculate_v2g(row):
             charge_end = discharge_start.replace(hour=min(min(peak_time_slots)), minute=0, second=0) + timedelta(days=2)
             charge_start = discharge_end
 
-    return discharge_start, discharge_end, charge_start, charge_end,  row['next_departure_time']
+    return discharge_start, discharge_end, charge_start, charge_end, row['next_departure_time']
 
 
-##################################################################################################################
-##################################################################################################################
 def v2g_tou_cap(df):
     # Apply the function to each row and add the results as new columns
     df[['discharge_start', 'discharge_end', 'charge_start', 'charge_end', "next_departure_time1"]] = df.apply(calculate_v2g, axis=1, result_type='expand')
@@ -1605,8 +1525,6 @@ def v2g_tou_cap_50(df):
     return df
 
 
-##################################################################################################################
-##################################################################################################################
 def v2g_tou_trip_buffer(df):
     # Apply the function to each row and add the results as new columns
     df[['discharge_start', 'discharge_end', 'charge_start', 'charge_end', "next_departure_time1"]] = df.apply(calculate_v2g, axis=1, result_type='expand')
@@ -1669,9 +1587,6 @@ def v2g_tou_charging_buffer(df):
     return df
 
 
-##################################################################################################################
-##################################################################################################################
-
 def storage_cap_tou(df):
     df = df.copy()
     V2G_hourly_tou = pd.DataFrame(index=df.index, columns=range(24))
@@ -1732,9 +1647,6 @@ def storage_cap_tou(df):
     return V2G_hourly_12_tou, V2G_hourly_6_tou, V2G_hourly_19_tou, V2G_hourly_12_tou_sum, V2G_hourly_6_tou_sum, V2G_hourly_19_tou_sum
 
 
-##################################################################################################################
-##################################################################################################################
-
 
 def storage_cap_tou_sta(df):
     df = df.copy()
@@ -1744,7 +1656,7 @@ def storage_cap_tou_sta(df):
     V2G_hourly_6_tou = V2G_hourly_12_tou.copy()
     V2G_hourly_19_tou = V2G_hourly_12_tou.copy()
     for i in df.index:
-        start_hour = df.loc[i, "discharge_start"].hour -1
+        start_hour = df.loc[i, "discharge_start"].hour - 1
         end_hour = df.loc[i, "discharge_end"].hour
         discharging_speed = 12
         total_capacity = df.loc[i, "V2G_cap_12k"]
@@ -1797,14 +1709,12 @@ def storage_cap_tou_sta(df):
     return V2G_hourly_12_tou, V2G_hourly_6_tou, V2G_hourly_19_tou, V2G_hourly_12_tou_sum, V2G_hourly_6_tou_sum, V2G_hourly_19_tou_sum
 
 
-##################################################################################################################
-##################################################################################################################
 def extra_extra_kwh(df):
     # Divide values by 1000 to convert kWh to MWh
     # Sort the DataFrame based on the sum of each row
     test0_MWh_sorted = df.sum(axis=1).sort_values().index
     test0_MWh_sorted_df = df.loc[test0_MWh_sorted]
-    test0_MWh_sorted_df = test0_MWh_sorted_df/1000
+    test0_MWh_sorted_df = test0_MWh_sorted_df / 1000
     columns_to_include_reversed = test0_MWh_sorted_df.columns[:-4][::-1]
 
     # Define colors for each bar
@@ -1842,7 +1752,7 @@ def extra_extra_kwh_sta(df):
 
     # Plot each bar separately without stacking
     for i, column in enumerate(columns_to_include_reversed):
-        plt.bar(test0_MWh_sorted_df.index, (test0_MWh_sorted_df[column]/365), color=colors[i], label=column)
+        plt.bar(test0_MWh_sorted_df.index, (test0_MWh_sorted_df[column] / 365), color=colors[i], label=column)
 
     plt.xlabel('Vehicles', fontsize=14)
     plt.ylabel('Energy Storage per Day (kWh)', fontsize=14)
@@ -1905,8 +1815,7 @@ def extra_extra_kwh_parking(df):
     plt.tight_layout()
     plt.show()
 
-##################################################################################################################
-##################################################################################################################
+
 def extra_extra_cycle(df):
     # Divide values by 1000 to convert kWh to MWh
     # Sort the DataFrame based on the sum of each row
@@ -1935,10 +1844,7 @@ def extra_extra_cycle(df):
     plt.show()
 
 
-##############################################################################################################################################
-##############################################################################################################################################
 def total_v2g_cap_graph(df, df1):
-
     # Plotting
     fig, ax = plt.subplots(figsize=(12, 6))  # Making the figure wider
     bar_width = 0.5
@@ -1962,9 +1868,7 @@ def total_v2g_cap_graph(df, df1):
     plt.show()
 
 
-
 def total_v2g_cap_graph1(df, df1):
-
     # Plotting
     fig, ax = plt.subplots(figsize=(12, 6))  # Making the figure wider
     bar_width = 0.5
@@ -1997,6 +1901,7 @@ def total_v2g_cap_graph1(df, df1):
     plt.tight_layout()
     plt.show()
 
+
 def total_v2g_cap_graph_base(df):
     # Plotting
     fig, ax = plt.subplots(figsize=(12, 6))  # Making the figure wider
@@ -2018,8 +1923,6 @@ def total_v2g_cap_graph_base(df):
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), shadow=True, ncol=3)
     plt.tight_layout()
     plt.show()
-##############################################################################################################################################
-##############################################################################################################################################
 
 
 def total_v2g_failt_graph(df):
@@ -2065,9 +1968,6 @@ def total_v2g_failc_graph(df):
     plt.tight_layout()  # Adjusting the layout to ensure all elements are properly displayed
     plt.show()
 
-
-##############################################################################################################################################
-##############################################################################################################################################
 
 def v2g_fail(df):
     # Filter rows where charging duration is not NaN
@@ -2126,8 +2026,7 @@ def v2g_fail(df):
 
     return data
 
-##############################################################################################################################################
-##############################################################################################################################################
+
 def v2g_participate(df):
     # df = v2g_tou.copy()
     df["discharge_end1"] = pd.to_datetime(df["discharge_end"])
@@ -2135,9 +2034,9 @@ def v2g_participate(df):
     df["charge_end1"] = pd.to_datetime(df["charge_end"])
     df["charge_start1"] = pd.to_datetime(df["charge_start"])
 
-    df["SOC_after_char_V2G_6k"] = (df["V2G_SOC_tou_6k"] + (((((df["charge_end1"] - df["charge_start1"]).dt.seconds/3600) * 6.6)/df["bat_cap"])*100))
-    df["SOC_after_char_V2G_12k"] = (df["V2G_SOC_tou_12k"] + (((((df["charge_end1"] - df["charge_start1"]).dt.seconds/3600) * 12)/df["bat_cap"])*100))
-    df["SOC_after_char_V2G_19k"] = (df["V2G_SOC_tou_19k"] + (((((df["charge_end1"] - df["charge_start1"]).dt.seconds/3600) * 19)/df["bat_cap"])*100))
+    df["SOC_after_char_V2G_6k"] = (df["V2G_SOC_tou_6k"] + (((((df["charge_end1"] - df["charge_start1"]).dt.seconds / 3600) * 6.6) / df["bat_cap"]) * 100))
+    df["SOC_after_char_V2G_12k"] = (df["V2G_SOC_tou_12k"] + (((((df["charge_end1"] - df["charge_start1"]).dt.seconds / 3600) * 12) / df["bat_cap"]) * 100))
+    df["SOC_after_char_V2G_19k"] = (df["V2G_SOC_tou_19k"] + (((((df["charge_end1"] - df["charge_start1"]).dt.seconds / 3600) * 19) / df["bat_cap"]) * 100))
 
     df["V2G_participate"] = False
     df.loc[(df["discharge_end1"] - df["discharge_start1"]).dt.seconds > 0, "V2G_participate"] = True
@@ -2145,8 +2044,6 @@ def v2g_participate(df):
     return df
 
 
-##############################################################################################################################################
-##############################################################################################################################################
 def parking_sessions(df):
     # df = final_dataframes.copy()
     parking_dataframe = df.groupby(['vehicle_name', "year", "month", "day"]).tail(n=1)
@@ -2215,12 +2112,9 @@ def parking_sessions(df):
 
     return result_df
 
-##############################################################################################################################################
-##############################################################################################################################################
 
 
 def v2g_tou_parking_function(df):
-
     v2g_tou_p = df.copy()
     v2g_tou_p = v2g_tou_p[v2g_tou_p["energy[charge_type][type]"] == "Parking"]
 
@@ -2276,16 +2170,15 @@ def v2g_tou_parking_function(df):
     condition = (v2g_tou_p["energy[charge_type][type]"] == "Parking") & (v2g_tou_p["discharge_start"].dt.hour < 21)
     v2g_tou_p.loc[condition, 'discharge_end'] = v2g_tou_p.loc[condition, 'discharge_start'].dt.floor('d') + pd.Timedelta(hours=21, minutes=00)
 
-    v2g_tou_p.loc[v2g_tou_p["energy[charge_type][type]"] == "Parking", "V2G_cap_6k_tou"] = (((v2g_tou_p.loc[v2g_tou_p["energy[charge_type][type]"] == "Parking", "discharge_end"] - v2g_tou_p.loc[v2g_tou_p["energy[charge_type][type]"] == "Parking", "discharge_start"]).dt.seconds)/3600) * 6.6
-    v2g_tou_p.loc[v2g_tou_p["energy[charge_type][type]"] == "Parking", "V2G_cap_12k_tou"] = (((v2g_tou_p.loc[v2g_tou_p["energy[charge_type][type]"] == "Parking", "discharge_end"] - v2g_tou_p.loc[v2g_tou_p["energy[charge_type][type]"] == "Parking", "discharge_start"]).dt.seconds)/3600) * 12
-    v2g_tou_p.loc[v2g_tou_p["energy[charge_type][type]"] == "Parking", "V2G_cap_19k_tou"] = (((v2g_tou_p.loc[v2g_tou_p["energy[charge_type][type]"] == "Parking", "discharge_end"] - v2g_tou_p.loc[v2g_tou_p["energy[charge_type][type]"] == "Parking", "discharge_start"]).dt.seconds)/3600) * 19
+    v2g_tou_p.loc[v2g_tou_p["energy[charge_type][type]"] == "Parking", "V2G_cap_6k_tou"] = (((v2g_tou_p.loc[v2g_tou_p["energy[charge_type][type]"] == "Parking", "discharge_end"] - v2g_tou_p.loc[v2g_tou_p["energy[charge_type][type]"] == "Parking", "discharge_start"]).dt.seconds) / 3600) * 6.6
+    v2g_tou_p.loc[v2g_tou_p["energy[charge_type][type]"] == "Parking", "V2G_cap_12k_tou"] = (((v2g_tou_p.loc[v2g_tou_p["energy[charge_type][type]"] == "Parking", "discharge_end"] - v2g_tou_p.loc[v2g_tou_p["energy[charge_type][type]"] == "Parking", "discharge_start"]).dt.seconds) / 3600) * 12
+    v2g_tou_p.loc[v2g_tou_p["energy[charge_type][type]"] == "Parking", "V2G_cap_19k_tou"] = (((v2g_tou_p.loc[v2g_tou_p["energy[charge_type][type]"] == "Parking", "discharge_end"] - v2g_tou_p.loc[v2g_tou_p["energy[charge_type][type]"] == "Parking", "discharge_start"]).dt.seconds) / 3600) * 19
 
     v2g_tou_p.loc[v2g_tou_p["V2G_cap_6k_tou"] > v2g_tou_p["bat_cap"], "V2G_cap_6k_tou"] = v2g_tou_p.loc[v2g_tou_p["V2G_cap_6k_tou"] > v2g_tou_p["bat_cap"], "bat_cap"]
     v2g_tou_p.loc[v2g_tou_p["V2G_cap_12k_tou"] > v2g_tou_p["bat_cap"], "V2G_cap_12k_tou"] = v2g_tou_p.loc[v2g_tou_p["V2G_cap_12k_tou"] > v2g_tou_p["bat_cap"], "bat_cap"]
     v2g_tou_p.loc[v2g_tou_p["V2G_cap_19k_tou"] > v2g_tou_p["bat_cap"], "V2G_cap_19k_tou"] = v2g_tou_p.loc[v2g_tou_p["V2G_cap_19k_tou"] > v2g_tou_p["bat_cap"], "bat_cap"]
 
     return v2g_tou_p
-
 
 
 def conditionally_update_start_time(row):
@@ -2304,6 +2197,7 @@ def conditionally_update_start_time(row):
             # Update the start_time in the data
             row['start_time_local'] = updated_start_time.strftime('%Y-%m-%d %H:%M:%S%z')
     return row
+
 
 def conditionally_update_end_time(row):
     from datetime import datetime, timedelta
@@ -2386,7 +2280,6 @@ def conditionally_update_end_time_charging(row):
 
 
 def conditionally_adjust_charging_end(row):
-
     # Check if charge_type is 'parking'
     if row["energy[charge_type][type]"] != 'Parking':
         end_time = row['discharge_end']
@@ -2394,12 +2287,10 @@ def conditionally_adjust_charging_end(row):
 
         # Proceed only if the day from end_time and the day column are different
         if end_day != row['day']:
-
             # Update the end_time in the data
             row['discharge_end'] = row['discharge_start']
 
     return row
-
 
 
 def charging_dataframe_parking(df, time):
@@ -2410,7 +2301,6 @@ def charging_dataframe_parking(df, time):
 
 
 def charging_selection_parking(df):
-
     # Filter rows where charging duration is not NaN
     final_df_charging = df.loc[(~df["energy[charge_type][type]"].isna()) | ((df["destination_label"] != "Other") & (df["energy[charge_type][type]"].isna()))].copy()
     # Fill NaN values in 'start_time_charging' with 'end_time_local'
@@ -2435,82 +2325,79 @@ def charging_speed_parking(df):
     return df
 
 
-def xlsx_read(dic):
-
-    # List of Excel file names
-    excel_files = [f for f in os.listdir(dic) if f.endswith('.xlsx')]
-
-    # Dictionary to store dataframes
-    all_dataframes = {}
-
-    # Iterate over each Excel file
-    for excel_file_name in excel_files:
-        excel_file_path = os.path.join(dic, excel_file_name)
-        print(f"Reading Excel file '{excel_file_path}'...")
-
-        # Read each sheet into a separate dataframe
-        with pd.ExcelFile(excel_file_path) as xls:
-            sheet_names = xls.sheet_names  # Get the names of all sheets in the Excel file
-
-            # Read each sheet into a dataframe and store it in the dictionary
-            for sheet_name in sheet_names:
-                df = pd.read_excel(xls, sheet_name=sheet_name)
-                new_df_name = f"{excel_file_name[:-5]}_{sheet_name}"  # Add sheet name to the file name
-                all_dataframes[new_df_name] = df
-
-    # Create a new dataframe to store total cost data
-    total_costs_df = pd.DataFrame()
-
-    # Iterate over the dataframes and extract total costs
-    for df_name, df in all_dataframes.items():
-        if "Total Costs" in df_name:
-            # Extract charging type and speed from the dataframe name
-            charging_type = "smart" if "smart" in df_name else "v2g"
-            charging_speed = df_name.split("_")[2][:-1]
-            ghg_cost = df_name.split("_")[3][:-2]
-
-            # Add a column indicating the charging type (smart or v2g)
-            df['Charging Type'] = charging_type
-            # Add columns indicating charging speed and GHG cost
-            df['Charging Speed'] = charging_speed
-            df['GHG Cost'] = ghg_cost
-
-            # Concatenate this dataframe with the total_costs_df
-            total_costs_df = pd.concat([total_costs_df, df])
-
-    print("Total cost data has been extracted.")
-    total_costs_df = total_costs_df.reset_index(drop=True)
-    # Display the new dataframe
-    print(total_costs_df)
-
-    # Create a new dataframe to store total cost data
-    individual_cost_df = pd.DataFrame()
-
-    # Iterate over the dataframes and extract total costs
-    for df_name, df in all_dataframes.items():
-        if "Individual Cost" in df_name:
-            # Extract charging type and speed from the dataframe name
-            charging_type = "smart" if "smart" in df_name else "v2g"
-            charging_speed = df_name.split("_")[2][:-1]
-            ghg_cost = df_name.split("_")[3][:-2]
-
-            # Add a column indicating the charging type (smart or v2g)
-            df['Charging Type'] = charging_type
-            # Add columns indicating charging speed and GHG cost
-            df['Charging Speed'] = charging_speed
-            df['GHG Cost'] = ghg_cost
-
-            # Concatenate this dataframe with the total_costs_df
-            individual_cost_df = pd.concat([individual_cost_df, df])
-
-    individual_cost_df = individual_cost_df.reset_index(drop=True)
-    # Display the new dataframe
-    return total_costs_df, individual_cost_df
+# def xlsx_read(dic):
+#     # List of Excel file names
+#     excel_files = [f for f in os.listdir(dic) if f.endswith('.xlsx')]
 #
+#     # Dictionary to store dataframes
+#     all_dataframes = {}
+#
+#     # Iterate over each Excel file
+#     for excel_file_name in excel_files:
+#         excel_file_path = os.path.join(dic, excel_file_name)
+#         print(f"Reading Excel file '{excel_file_path}'...")
+#
+#         # Read each sheet into a separate dataframe
+#         with pd.ExcelFile(excel_file_path) as xls:
+#             sheet_names = xls.sheet_names  # Get the names of all sheets in the Excel file
+#
+#             # Read each sheet into a dataframe and store it in the dictionary
+#             for sheet_name in sheet_names:
+#                 df = pd.read_excel(xls, sheet_name=sheet_name)
+#                 new_df_name = f"{excel_file_name[:-5]}_{sheet_name}"  # Add sheet name to the file name
+#                 all_dataframes[new_df_name] = df
+#
+#     # Create a new dataframe to store total cost data
+#     total_costs_df = pd.DataFrame()
+#
+#     # Iterate over the dataframes and extract total costs
+#     for df_name, df in all_dataframes.items():
+#         if "Total Costs" in df_name:
+#             # Extract charging type and speed from the dataframe name
+#             charging_type = "smart" if "smart" in df_name else "v2g"
+#             charging_speed = df_name.split("_")[2][:-1]
+#             ghg_cost = df_name.split("_")[3][:-2]
+#
+#             # Add a column indicating the charging type (smart or v2g)
+#             df['Charging Type'] = charging_type
+#             # Add columns indicating charging speed and GHG cost
+#             df['Charging Speed'] = charging_speed
+#             df['GHG Cost'] = ghg_cost
+#
+#             # Concatenate this dataframe with the total_costs_df
+#             total_costs_df = pd.concat([total_costs_df, df])
+#
+#     print("Total cost data has been extracted.")
+#     total_costs_df = total_costs_df.reset_index(drop=True)
+#     # Display the new dataframe
+#     print(total_costs_df)
+#
+#     # Create a new dataframe to store total cost data
+#     individual_cost_df = pd.DataFrame()
+#
+#     # Iterate over the dataframes and extract total costs
+#     for df_name, df in all_dataframes.items():
+#         if "Individual Cost" in df_name:
+#             # Extract charging type and speed from the dataframe name
+#             charging_type = "smart" if "smart" in df_name else "v2g"
+#             charging_speed = df_name.split("_")[2][:-1]
+#             ghg_cost = df_name.split("_")[3][:-2]
+#
+#             # Add a column indicating the charging type (smart or v2g)
+#             df['Charging Type'] = charging_type
+#             # Add columns indicating charging speed and GHG cost
+#             df['Charging Speed'] = charging_speed
+#             df['GHG Cost'] = ghg_cost
+#
+#             # Concatenate this dataframe with the total_costs_df
+#             individual_cost_df = pd.concat([individual_cost_df, df])
+#
+#     individual_cost_df = individual_cost_df.reset_index(drop=True)
+#     # Display the new dataframe
+#     return total_costs_df, individual_cost_df
 
 
 def json_file_read(dic, flatten_veh):
-
     # List of JSON file names
     json_files = [f for f in os.listdir(dic) if f.endswith('.json')]
     # Dictionary to store dataframes
@@ -2568,7 +2455,7 @@ def json_file_read(dic, flatten_veh):
 
     # Calculate Total_power
     result["Total_power"] = result["Charging Speed"] * result["X_CHR_Count"]
-    result["Utilization Rate"] = abs(result["X_CHR_Sum"] / result["Total_power"])*100
+    result["Utilization Rate"] = abs(result["X_CHR_Sum"] / result["Total_power"]) * 100
 
     # Convert the hour values to modulo 24 to represent a 24-hour clock
     result['Hour_of_day'] = result['Hour'] % 24
@@ -2649,8 +2536,6 @@ def plot_price_chart_TOU(off_peak_price, peak_price, bar_width, colors, font_siz
     plt.show()
 
 
-
-
 def plot_price_chart_EVRATE(off_peak_price, part_peak_price, peak_price, bar_width, colors, font_size=12):
     # Define the time periods and corresponding prices
     time_periods = ['12 a.m.', '1 a.m.', '2 a.m.', '3 a.m.', '4 a.m.', '5 a.m.', '6 a.m.', '7 a.m.', '8 a.m.', '9 a.m.', '10 a.m.', '11 a.m.',
@@ -2723,9 +2608,8 @@ def plot_price_chart_EVRATE(off_peak_price, part_peak_price, peak_price, bar_wid
     plt.tight_layout()
     plt.show()
 
-##
 
-def plot_cost_comparison_EV(df, num_vehicles, title_size=14, axis_text_size=12, y_axis_title='Cost ($)', barhight = 500):
+def plot_cost_comparison_EV(df, num_vehicles, title_size=14, axis_text_size=12, y_axis_title='Cost ($)', barhight=500):
     df1 = df.copy()
     df1['Scenario'] = df1['Charging Type'] + ' - ' + df1['Charging Speed'].astype(str) + ' - ' + df1['Plugged-in Sessions'] + ' - ' + df1['V2G_Location']
 
@@ -2938,7 +2822,6 @@ def plot_cost_comparison_TOU(df, num_vehicles, title_size=14, axis_text_size=12,
                         bar_height = max(0, electricity_cost) + max(0, degradation_cost)
                         ax.text(f'V2G-{speed}', barhight if total_cost > 0 else barhight, f"${total_cost:.2f}", ha='center', va='bottom' if total_cost > 0 else 'bottom', color='black', fontsize=13, rotation=90)
 
-
             # Set axis labels and title sizes
             ax.set_ylabel(y_axis_title, fontsize=title_size)
             ax.set_xlabel('Charging Scenario', fontsize=title_size)
@@ -2976,7 +2859,7 @@ def plot_cost_comparison_TOU(df, num_vehicles, title_size=14, axis_text_size=12,
     plt.show()
 
 
-def plot_cost_comparison_RT(df, num_vehicles, title_size=14, axis_text_size=12, y_axis_title='Cost ($)', barhight = 500):
+def plot_cost_comparison_RT(df, num_vehicles, title_size=14, axis_text_size=12, y_axis_title='Cost ($)', barhight=500):
     df1 = df.copy()
     df1['Scenario'] = df1['Charging Type'] + ' - ' + df1['Charging Speed'].astype(str) + ' - ' + df1['Plugged-in Sessions'] + ' - ' + df1['V2G_Location']
 
@@ -3046,7 +2929,7 @@ def plot_cost_comparison_RT(df, num_vehicles, title_size=14, axis_text_size=12, 
                 bar_height = max(0, electricity_cost) + max(0, degradation_cost)
                 ax.text('Actual-EV Rate', barhight if total_cost > 0 else -barhight, f"${total_cost:.2f}", ha='center', va='bottom' if total_cost > 0 else 'top', color='black', fontsize=13, rotation=90)
 
-                    # Plot Smart Charging
+                # Plot Smart Charging
                 for speed in ['6.6', '12', '19']:
                     smart_subset = subset[(subset['Charging Type'] == 'smart') & (subset['Charging Speed'] == float(speed))]
                     if not smart_subset.empty:
@@ -3118,84 +3001,84 @@ def plot_cost_comparison_RT(df, num_vehicles, title_size=14, axis_text_size=12, 
 
 
 def violin_plot(df):
-        # Create a color palette dictionary based on tariff types and social costs
-        palette = {
-            'RT Rate-0.05': '#6FCFEB',
-            'RT Rate-0.191': '#FFDC00',
-            'EV Rate-0.05': 'orange',
-            'EV Rate-0.191': 'teal',
-            'TOU Rate-0.05': '#FF8189',
-            'TOU Rate-0.191': '#C6007E'
-        }
+    # Create a color palette dictionary based on tariff types and social costs
+    palette = {
+        'RT Rate-0.05': '#6FCFEB',
+        'RT Rate-0.191': '#FFDC00',
+        'EV Rate-0.05': 'orange',
+        'EV Rate-0.191': 'teal',
+        'TOU Rate-0.05': '#FF8189',
+        'TOU Rate-0.191': '#C6007E'
+    }
 
-        # Get unique scenarios and sort them if necessary
-        unique_scenarios = sorted(df['Scenario'].unique())
+    # Get unique scenarios and sort them if necessary
+    unique_scenarios = sorted(df['Scenario'].unique())
 
-        # Create a new figure for the plot
-        plt.figure(figsize=(16, 8))
+    # Create a new figure for the plot
+    plt.figure(figsize=(16, 8))
 
-        # Separate the data based on the Tariff column
-        ev_rate_data = df[df['Tariff'].str.contains('EV Rate')]
-        rt_rate_data = df[df['Tariff'].str.contains('RT Rate')]
-        tou_rate_data = df[df['Tariff'].str.contains('TOU Rate')]
+    # Separate the data based on the Tariff column
+    ev_rate_data = df[df['Tariff'].str.contains('EV Rate')]
+    rt_rate_data = df[df['Tariff'].str.contains('RT Rate')]
+    tou_rate_data = df[df['Tariff'].str.contains('TOU Rate')]
 
-        # Plot EV Rate data
-        sns.violinplot(x='Scenario', y='Total_Cost',
-                       hue='Tariff_Social_Cost',
-                       data=ev_rate_data, bw=0.2,
-                       split=True, inner='quart', linewidth=1.5,
-                       palette=palette, width=1, dodge=True, order=unique_scenarios
-                       )
+    # Plot EV Rate data
+    sns.violinplot(x='Scenario', y='Total_Cost',
+                   hue='Tariff_Social_Cost',
+                   data=ev_rate_data, bw=0.2,
+                   split=True, inner='quart', linewidth=1.5,
+                   palette=palette, width=1, dodge=True, order=unique_scenarios
+                   )
 
-        # Plot RT Rate data
-        sns.violinplot(x='Scenario', y='Total_Cost',
-                       hue='Tariff_Social_Cost',
-                       data=rt_rate_data, bw=0.2,
-                       split=True, inner='quart', linewidth=1.5,
-                       palette=palette, width=1, dodge=True, order=unique_scenarios
-                       )
+    # Plot RT Rate data
+    sns.violinplot(x='Scenario', y='Total_Cost',
+                   hue='Tariff_Social_Cost',
+                   data=rt_rate_data, bw=0.2,
+                   split=True, inner='quart', linewidth=1.5,
+                   palette=palette, width=1, dodge=True, order=unique_scenarios
+                   )
 
-        sns.violinplot(x='Scenario', y='Total_Cost',
-                       hue='Tariff_Social_Cost',
-                       data=tou_rate_data, bw=0.2,
-                       split=True, inner='quart', linewidth=1.5,
-                       palette=palette, width=1, dodge=True, order=unique_scenarios
-                       )
+    sns.violinplot(x='Scenario', y='Total_Cost',
+                   hue='Tariff_Social_Cost',
+                   data=tou_rate_data, bw=0.2,
+                   split=True, inner='quart', linewidth=1.5,
+                   palette=palette, width=1, dodge=True, order=unique_scenarios
+                   )
 
-        # Rotate x-axis labels and align them with their respective violins
-        plt.xticks(ticks=np.arange(len(unique_scenarios)), labels=unique_scenarios, rotation=45, ha='right', fontsize=14)
+    # Rotate x-axis labels and align them with their respective violins
+    plt.xticks(ticks=np.arange(len(unique_scenarios)), labels=unique_scenarios, rotation=45, ha='right', fontsize=14)
 
-        # Set plot labels and title
-        plt.xlabel('Scenario', fontsize=16)
-        plt.ylabel('Annual Cost / Revenue ($) Per Vehicle', fontsize=16)
-        plt.title('', fontsize=14)
-        # Add text box with scenario information
-        textstr = 'All scenarios include different charging speeds and V2G charger locations.'
-        plt.text(0.01, 0.3, textstr, transform=plt.gca().transAxes, fontsize=14,
-                 verticalalignment='center', bbox=dict(facecolor='white', alpha=0.5))
+    # Set plot labels and title
+    plt.xlabel('Scenario', fontsize=16)
+    plt.ylabel('Annual Cost / Revenue ($) Per Vehicle', fontsize=16)
+    plt.title('', fontsize=14)
+    # Add text box with scenario information
+    textstr = 'All scenarios include different charging speeds and V2G charger locations.'
+    plt.text(0.01, 0.3, textstr, transform=plt.gca().transAxes, fontsize=14,
+             verticalalignment='center', bbox=dict(facecolor='white', alpha=0.5))
 
-        # Get the legend handles and labels
-        handles, labels = plt.gca().get_legend_handles_labels()
-        new_labels = []
-        for label in labels:
-            tariff, cost_per_kg = label.rsplit('-', 1)
-            cost_per_tonne = float(cost_per_kg) * 1000
-            new_label = f"{tariff} - {cost_per_tonne:.0f} $/tonne of CO₂"
-            new_labels.append(new_label)
+    # Get the legend handles and labels
+    handles, labels = plt.gca().get_legend_handles_labels()
+    new_labels = []
+    for label in labels:
+        tariff, cost_per_kg = label.rsplit('-', 1)
+        cost_per_tonne = float(cost_per_kg) * 1000
+        new_label = f"{tariff} - {cost_per_tonne:.0f} $/tonne of CO₂"
+        new_labels.append(new_label)
 
-        # Manually add legend at the bottom of the plot with modified labels
-        plt.legend(handles, new_labels, title='Tariff - Social Cost of Carbon', loc='lower left', fontsize=14, ncol=2, title_fontsize=16)
+    # Manually add legend at the bottom of the plot with modified labels
+    plt.legend(handles, new_labels, title='Tariff - Social Cost of Carbon', loc='lower left', fontsize=14, ncol=2, title_fontsize=16)
 
-        # Increase y-axis tick font size
-        plt.yticks(np.arange(-12000, 12000, 3000), fontsize=14)
-        # Add horizontal grid lines
-        plt.grid()
+    # Increase y-axis tick font size
+    plt.yticks(np.arange(-12000, 12000, 3000), fontsize=14)
+    # Add horizontal grid lines
+    plt.grid()
 
-        # Adjust layout to fit legend properly
-        plt.tight_layout()
+    # Adjust layout to fit legend properly
+    plt.tight_layout()
 
-        # Show plot
-        plt.show()
+    # Show plot
+    plt.show()
 
 
 def plot_ghg_distribution_seasons(GHG_dict, Power_dict):
@@ -3261,6 +3144,7 @@ def plot_ghg_distribution_seasons(GHG_dict, Power_dict):
         plt.tight_layout()
         plt.show()
 
+
 def add_tariff_name(df, tariff_name):
     df['Tariff'] = tariff_name
     return df
@@ -3271,14 +3155,14 @@ def add_tariff_name2(df, tariff_name, charging_behavior):
     df['Charging_Behavior'] = charging_behavior
     return df
 
+
 def add_tariff_name3(df, tariff_name, charging_behavior):
     df['Tariff'] = tariff_name
     df['Charging_Behavior'] = charging_behavior
     df['GHG Cost'] = 0
     return df
-# %%
-from matplotlib.lines import Line2D
-# Function to plot the stacked violin plots
+
+
 # Function to plot the stacked violin plots
 def stacked_violin_plot(df):
     # Create a color palette dictionary based on tariff types and social costs
@@ -3380,7 +3264,6 @@ def stacked_violin_plot(df):
     # Show plot
     plt.show()
 
-# %%
 
 def plotting(df, num_vehicles):
     df1 = df.copy()
@@ -3457,13 +3340,10 @@ def plotting(df, num_vehicles):
     # plt.savefig('plot_output.png')
     plt.show()
 
-# %%
-
 
 def draw_RT(df):
-
     # Create a sample array representing electricity price for 8760 hours
-    electricity_price = [] # Random values between 0 and 1
+    electricity_price = []  # Random values between 0 and 1
     for key, value in df.items():
         electricity_price.append(value)
     electricity_price = electricity_price[:8760]
@@ -3476,7 +3356,7 @@ def draw_RT(df):
 
     # Set labels and title
     plt.xlabel('Hour', fontsize=18)
-    plt.ylabel('Electricity Price ($ / MWh)',fontsize=18)
+    plt.ylabel('Electricity Price ($ / MWh)', fontsize=18)
     # plt.title('Electricity Price for year 2021 - PG&E territory ')
 
     # Add grid and legend
@@ -3484,12 +3364,11 @@ def draw_RT(df):
     plt.legend(fontsize=18)
     plt.xticks(fontsize=18)
     plt.yticks(fontsize=18)
-    plt.xlim(0,8760)
+    plt.xlim(0, 8760)
     # Show the plot
     plt.tight_layout()
     plt.show()
 
-# %%
 
 def draw_util(df):
     # Assuming you have a DataFrame named 'df' with columns 'Charging_Speed', 'GHG_Cost', and 'Peak'
@@ -3519,8 +3398,6 @@ def draw_util(df):
     plt.tight_layout()
     plt.show()
 
-# %%
-
 
 def draw_util_rt(df):
     # Assuming you have a DataFrame named 'df' with columns 'Charging_Speed', 'GHG_Cost', 'Peak', and 'Utilization Rate'
@@ -3543,11 +3420,8 @@ def draw_util_rt(df):
     plt.tight_layout()
     plt.show()
 
-# %%
-
 
 def draw_profile(charging_cost, hourly_data):
-
     combined_price_PGE_average_df = pd.DataFrame([charging_cost])
     combined_price_PGE_average_df = combined_price_PGE_average_df.T
     combined_price_PGE_average_df = combined_price_PGE_average_df.copy()
@@ -3589,7 +3463,7 @@ def draw_profile(charging_cost, hourly_data):
     ax2 = ax1.twinx()
 
     # Plot the electricity price on the secondary y-axis
-    ax2.plot(optimal_result['Datetime'], optimal_result['Price']/1000, label='Electricity Price', color='red', linestyle='dashed', marker='x')
+    ax2.plot(optimal_result['Datetime'], optimal_result['Price'] / 1000, label='Electricity Price', color='red', linestyle='dashed', marker='x')
     ax2.set_ylabel('Price ($/kWh)', fontsize=20)
     # Increase the size of the tick labels on the secondary y-axis
     ax2.tick_params(axis='both', which='major', labelsize=18)
@@ -3603,7 +3477,6 @@ def draw_profile(charging_cost, hourly_data):
 
     plt.show()
 
-# %%
 
 def demand_response(df, include_locations):
     # Ensure include_locations is a list
@@ -3638,8 +3511,6 @@ def demand_response(df, include_locations):
     return final_df
 
 
-# Assuming All_rates_total is your DataFrame with columns: Charging Type, Plugged-in Sessions, Electricity_Cost, Degradation_Cost, GHG_Cost
-# Calculate Total Cost
 def violin_input(df):
     df["Charging Speed"] = df["Charging Speed"].astype(float)
     df["GHG Cost"] = df["GHG Cost"].astype(float)
@@ -3655,7 +3526,7 @@ def violin_input(df):
     df_long = df[["Vehicle", "Scenario", "Charging Speed", "Total_Cost", "Social Cost of Carbon", "Tariff"]].sort_values(by='Scenario')
     # Create a new column for the combined hue
     df_long['Tariff_Social_Cost'] = df_long['Tariff'] + '-' + df_long['Social Cost of Carbon'].astype(str)
-    df_long = df_long.sort_values(["Vehicle","Scenario", "Charging Speed", "Social Cost of Carbon", "Tariff"])
+    df_long = df_long.sort_values(["Vehicle", "Scenario", "Charging Speed", "Social Cost of Carbon", "Tariff"])
     df_long["Charging Speed"].fillna(0, inplace=True)
     return df_long
 
@@ -3666,6 +3537,7 @@ def filter_rows_by_word(df, column_name, words):
 
     # Return the filtered DataFrame
     return df[mask]
+
 
 def process_charging_data(df):
     # Group by initial columns and sum X_CHR
@@ -3693,6 +3565,7 @@ def process_charging_data1(df):
     final_grouped_df = grouped_df.groupby(["daily_hour", "Charging Type", "Charging Speed", "GHG Cost", "Tariff", "Charging_Behavior", "charging_indicator"])["X_CHR"].mean().reset_index()
 
     return final_grouped_df
+
 
 def plotting_demand_heatmap(df_actual, df_potential, charging_type, color_palette="viridis"):
     # Filter data by Charging Type
@@ -3747,7 +3620,7 @@ def plotting_demand_heatmap(df_actual, df_potential, charging_type, color_palett
     fig.colorbar(sm, cax=cbar_ax)
 
     plt.show()
-# %%
+
 
 def dr_plot(data1, data2, data3, data4, data5, data6):
     dfs = [data1, data2, data3, data4, data5, data6]
@@ -3758,7 +3631,7 @@ def dr_plot(data1, data2, data3, data4, data5, data6):
 
     # Define the colors
     blue_color = sns.color_palette("Blues", 10)[5]  # Ensure we get the 6th shade
-    red_color = sns.color_palette("Reds", 10)[6]    # Ensure we get the 7th shade
+    red_color = sns.color_palette("Reds", 10)[6]  # Ensure we get the 7th shade
 
     titles = ["Actual EV Rate", "Actual TOU Rate", "Actual RT Rate", "Potential EV Rate", "Potential TOU Rate", "Potential RT Rate"]
 
@@ -3776,7 +3649,7 @@ def dr_plot(data1, data2, data3, data4, data5, data6):
             axes[row, col].bar(data_filtered['Hour_of_day'], data_filtered['Percentage_True'] / 100, bottom=data_filtered['Percentage_False'] / 100, color=blue_color, width=bar_width, label='True', hatch='//')
             axes[row, col].set_title(f'{titles[dataset_index]} - Speed {batt_cap} kW', fontsize=10)
             axes[row, col].set_xticks(range(0, 24, 4))  # Show every other hour for readability
-            axes[row, col].set_yticks([i/10 for i in range(0, 11, 2)])  # Show every other hour for readability
+            axes[row, col].set_yticks([i / 10 for i in range(0, 11, 2)])  # Show every other hour for readability
             # axes[row, col].set_xticklabels(range(0, 24, 2), fontsize=10)
             # axes[row, col].set_yticklabels([i/10 for i in range(0, 11, 2)], fontsize=10)
             # axes[row, col].set_xlabel('Hour of Day', fontsize=10)
@@ -3790,6 +3663,7 @@ def dr_plot(data1, data2, data3, data4, data5, data6):
     sns.despine()
     plt.tight_layout()
     plt.show()
+
 
 def plot_contour(df):
     # Prepare the data for the contour plot
@@ -3835,21 +3709,18 @@ def plot_contour(df):
     plt.show()
 
 
-# Load BEV travel data and aggregate distance by vehicle
 def load_bev_distance(file_path):
     bev_data = pd.read_csv(file_path)
     bev_distance = bev_data.groupby(["vehicle_name", "bat_cap"])["distance"].sum().reset_index()
     return bev_distance
 
 
-# Load and prepare cost data from Excel
-def load_and_prepare_cost_data(file_path, sheet_name, charging_type, ghg_cost):
+def load_and_prepare_cost_data(file_path, sheet_name, rate_type):
     df = pd.read_excel(file_path, sheet_name=sheet_name)
-    df = df.drop(df.columns[0], axis=1)  # Drop the unnamed column
-    df["Tariff"] = charging_type
-    df["GHG Cost"] = ghg_cost
+    # df = df.drop(df.columns[0], axis=1)  # Drop the unnamed column
+    df["Rate_Type"] = rate_type
     df["V2G_Location"] = "None"
-    df["Plugged-in Sessions"] = "Actual"
+    df["Scenario"] = "Conventional"
     return df
 
 
@@ -3864,15 +3735,15 @@ def adjust_ghg_cost(df, new_ghg_cost, baseline_ghg_cost=0.05):
 # Main processing of cost data
 def process_actual_cost(ev_cost_file, tou_cost_file):
     # Load and prepare cost data
-    costs_ev_rate = load_and_prepare_cost_data(ev_cost_file, 'Individual Costs', "EV Rate", 0.05)
-    costs_tou_rate = load_and_prepare_cost_data(tou_cost_file, 'Individual Costs', "TOU Rate", 0.05)
+    costs_ev_rate = load_and_prepare_cost_data(ev_cost_file, 'Individual Costs', "EV_Rate")
+    costs_tou_rate = load_and_prepare_cost_data(tou_cost_file, 'Individual Costs', "TOU")
     # Adjust GHG cost for the new value of 0.191
-    costs_ev_rate_191 = adjust_ghg_cost(costs_ev_rate, new_ghg_cost=0.191)
-    costs_tou_rate_191 = adjust_ghg_cost(costs_tou_rate, new_ghg_cost=0.191)
+    # costs_ev_rate_191 = adjust_ghg_cost(costs_ev_rate, new_ghg_cost=0.191)
+    # costs_tou_rate_191 = adjust_ghg_cost(costs_tou_rate, new_ghg_cost=0.191)
     # Combine all cost data into a single DataFrame
-    combined_costs = pd.concat([costs_ev_rate, costs_tou_rate, costs_ev_rate_191, costs_tou_rate_191]).reset_index(drop=True)
+    combined_costs = pd.concat([costs_ev_rate, costs_tou_rate]).reset_index(drop=True)
     # Calculate total costs
-    combined_costs["Total_cost"] = combined_costs["Electricity_Cost"] + combined_costs["Degradation_Cost"] + combined_costs["GHG_Cost"]
+    combined_costs["Total_cost"] = combined_costs["Electricity_Cost"] + combined_costs["Degradation_Cost"]
     return combined_costs
 
 
@@ -3888,13 +3759,17 @@ def load_and_clean_data(file_path):
 
 
 def group_charging_data(data):
+    # Set any negative X_CHR values to zero
+    data["X_CHR"] = data["X_CHR"].apply(lambda x: max(x, 0))
+
+    # Group and sum the data
     grouped_data = data.groupby(
-        ["Vehicle", "Charging Type", "Charging Speed", "GHG Cost", 'Tariff', 'Charging_Behavior'])[["X_CHR", "Electricity_Cost", "Degradation_Cost", "GHG_Cost"]].sum().reset_index()
+        ["Vehicle", "Charge_Type", "Charging_Speed", "Rate_Type", 'Utility', 'V2G_Location', "Scenario"]
+    )[["X_CHR", "Electricity_Cost", "Degradation_Cost", "GHG_Cost"]].sum().reset_index()
 
     return grouped_data
 
 
-# Function to calculate years to reach 80% battery capacity
 def calculate_years_to_80_percent(bt_cap_rem, annual_consumption):
     years = 0
     while bt_cap_rem > 0.8:  # Stop when battery capacity drops to 80% or less
@@ -3903,14 +3778,15 @@ def calculate_years_to_80_percent(bt_cap_rem, annual_consumption):
     return years
 
 
-# Function to process and clean the hourly charging data
 def process_hourly_charging_data(data_N, data_P):
     # Concatenate N and P datasets
     data = pd.concat([data_N, data_P])
+    data['Charging_Speed'] = data['Charging_Speed'].str.replace('kW', '').astype(float)
+
     # Filter rows based on conditions
-    data = data[data["GHG Cost"] > 0]
-    data = data[~((data["Charging Speed"] == 19) & (data["Charging Type"] == "v2g"))]
-    data = data[~data["Tariff"].str.contains("Home&Work")]
+    # data = data[data["GHG Cost"] > 0]
+    data = data[~((data["Charging_Speed"] == 19) & (data["Charge_Type"] == "Bidirectional"))]
+    data = data[data["V2G_Location"] == "Home_Work"]
     # Calculate battery remaining capacity
     data["bt_cap_rem"] = -1.42e-6 * data["X_CHR"] + 0.989999999
     # Calculate years to 80% capacity
@@ -3919,10 +3795,9 @@ def process_hourly_charging_data(data_N, data_P):
     return data
 
 
-# Function to calculate smart average and merge
 def add_smart_avg(data):
     # Calculate the average years for 'smart' charging type
-    smart_avg = data[data["Charging Type"] == "smart"].groupby("Vehicle")["years_to_80_percent"].mean().reset_index()
+    smart_avg = data[data["Charge_Type"] == "Smart"].groupby("Vehicle")["years_to_80_percent"].mean().reset_index()
     smart_avg = smart_avg.rename(columns={"years_to_80_percent": "average_smart_years"})
     # Merge average smart years back to the original data
     data = pd.merge(data, smart_avg, on="Vehicle", how="left")
@@ -3932,24 +3807,23 @@ def add_smart_avg(data):
     return data
 
 
-# Function to merge costs and calculate total
 def merge_and_calculate_costs(data, actual_cost, bev_distance):
     # Merge BEV distance
     data = pd.merge(data, bev_distance, left_on="Vehicle", right_on="vehicle_name", how="left")
     # Remove '- Home' from 'Tariff' column
-    data["Tariff"] = data["Tariff"].str.replace('- Home', '', regex=False)
+    # data["Tariff"] = data["Tariff"].str.replace('- Home', '', regex=False)
     # Merge TOU cost
-    actual_cost_tou = actual_cost[actual_cost["Tariff"] == "TOU Rate"]
-    data = pd.merge(data, actual_cost_tou[["Vehicle", "GHG Cost", "Total_cost"]], on=["Vehicle", "GHG Cost"], how="left", suffixes=('', '_TOU'))
+    actual_cost_tou = actual_cost[actual_cost["Rate_Type"] == "TOU"]
+    data = pd.merge(data, actual_cost_tou[["Vehicle", "Total_cost"]], on="Vehicle", how="left", suffixes=('', '_TOU'))
     data["TOU Cost"] = data["Total_cost"]  # Assign TOU cost
     # Merge EV cost
-    actual_cost_ev = actual_cost[actual_cost["Tariff"] == "EV Rate"]
-    data = pd.merge(data, actual_cost_ev[["Vehicle", "GHG Cost", "Total_cost"]], on=["Vehicle", "GHG Cost"], how="left", suffixes=('', '_EV'))
+    actual_cost_ev = actual_cost[actual_cost["Rate_Type"] == "EV_Rate"]
+    data = pd.merge(data, actual_cost_ev[["Vehicle", "Total_cost"]], on="Vehicle", how="left", suffixes=('', '_EV'))
     data["EV Cost"] = data["Total_cost_EV"]  # Assign EV cost
     # Drop unnecessary columns
     data.drop(["Total_cost", "Total_cost_EV"], axis=1, inplace=True, errors='ignore')
     # Calculate the final total cost
-    data["Total_cost"] = data["Electricity_Cost"] + data["Degradation_Cost"] + data["GHG_Cost"]
+    data["Total_cost"] = data["Electricity_Cost"] + data["Degradation_Cost"]
 
     return data
 
@@ -3966,17 +3840,16 @@ def calculate_battery_price_per_kwh(year, bat_cap, df_price_estimations):
 
     return bat_cap * price_per_kwh
 
-# %%
-
 
 def calculate_future_battery_price(cycle_number, current_year, bat_cap, cycles, df_price_estimations):
     # Estimate the year of battery replacement based on the cycle number
     year_of_replacement = current_year + cycle_number * cycles  # Assuming 'years_to_80_percent' is constant
     return calculate_battery_price_per_kwh(year_of_replacement, bat_cap, df_price_estimations)
 
+
 def update_savings_columns(df, df_price_estimations, current_year, v2g_cost, v1g_cost, v1g_cost_19kw):
     def calculate_total_saving(row):
-        if row['Charging Type'] == 'v2g':
+        if row['Charge_Type'] == 'Bidirectional':
             # Calculate the cumulative savings for V2G
             cycles = int(row["average_smart_years"] / row["years_to_80_percent"])
             total_saving = 0
@@ -3988,7 +3861,7 @@ def update_savings_columns(df, df_price_estimations, current_year, v2g_cost, v1g
             return total_saving
         else:
             # Adjust v1g_cost for smart charging with 19 kW chargers
-            if row['Charging Speed'] == 19:
+            if row['Charging_Speed'] == 19:
                 adjusted_v1g_cost = v1g_cost_19kw
             else:
                 adjusted_v1g_cost = v1g_cost
@@ -3998,7 +3871,7 @@ def update_savings_columns(df, df_price_estimations, current_year, v2g_cost, v1g
     df['Saving_TOU'] = df.apply(lambda row: calculate_total_saving(row), axis=1)
 
     def calculate_total_saving_ev(row):
-        if row['Charging Type'] == 'v2g':
+        if row['Charge_Type'] == 'Bidirectional':
             # Calculate the cumulative savings for V2G
             cycles = int(row["average_smart_years"] / row["years_to_80_percent"])
             total_saving = 0
@@ -4006,11 +3879,11 @@ def update_savings_columns(df, df_price_estimations, current_year, v2g_cost, v1g
                 cycle_saving = (row['EV Cost'] - row['Total_cost']) * row['years_to_80_percent']
                 cycle_saving -= calculate_future_battery_price(cycle, current_year, row['bat_cap'], cycles, df_price_estimations)
                 total_saving += cycle_saving
-            total_saving -= v2g_cost * cycles
+            total_saving -= v2g_cost
             return total_saving
         else:
             # Adjust v1g_cost for smart charging with 19 kW chargers
-            if row['Charging Speed'] == 19:
+            if row['Charging_Speed'] == 19:
                 adjusted_v1g_cost = v1g_cost_19kw
             else:
                 adjusted_v1g_cost = v1g_cost
@@ -4021,21 +3894,83 @@ def update_savings_columns(df, df_price_estimations, current_year, v2g_cost, v1g
 
     return df
 
-def plot_saving_ev_vs_distance(df, add_actual_lines=False, add_potential_lines=False, ylim=None, text_size=18):
-    import matplotlib.pyplot as plt
-    from matplotlib.lines import Line2D
 
+def update_savings_columns1(df, df_price_estimations, current_year, v2g_cost, v1g_cost, v1g_cost_19kw, interest_rate=0.05):
+    def calculate_total_saving(row):
+        total_saving = 0
+        # Annual savings
+        yearly_saving = (row['TOU Cost'] - row['Total_cost'])
+        # Total years in the study
+        total_years = int(row["average_smart_years"])
+        # Number of cycles during the study period
+        cycles = int(total_years / row["years_to_80_percent"])
+
+        # Add yearly savings with discounting
+        for year in range(1, total_years + 1):
+            total_saving += yearly_saving / ((1 + interest_rate) ** year)
+
+        # Add battery replacement costs with discounting
+        for cycle in range(1, cycles + 1):
+            replacement_year = cycle * row["years_to_80_percent"]
+            battery_cost = calculate_future_battery_price(cycle, current_year, row['bat_cap'], cycles, df_price_estimations)
+            total_saving -= battery_cost / ((1 + interest_rate) ** replacement_year)
+
+        # Subtract V2G infrastructure cost (applied once, year 0)
+        if row['Charge_Type'] == 'Bidirectional':
+            total_saving -= v2g_cost
+        else:
+            # Adjust V1G cost for smart charging with 19 kW chargers
+            adjusted_v1g_cost = v1g_cost_19kw if row['Charging_Speed'] == 19 else v1g_cost
+            total_saving -= adjusted_v1g_cost
+
+        return total_saving
+
+    def calculate_total_saving_ev(row):
+        total_saving = 0
+        # Annual savings
+        yearly_saving = (row['EV Cost'] - row['Total_cost'])
+        # Total years in the study
+        total_years = int(row["average_smart_years"])
+        # Number of cycles during the study period
+        cycles = int(total_years / row["years_to_80_percent"])
+
+        # Add yearly savings with discounting
+        for year in range(1, total_years + 1):
+            total_saving += yearly_saving / ((1 + interest_rate) ** year)
+
+        # Add battery replacement costs with discounting
+        for cycle in range(1, cycles + 1):
+            replacement_year = cycle * row["years_to_80_percent"]
+            battery_cost = calculate_future_battery_price(cycle, current_year, row['bat_cap'], cycles, df_price_estimations)
+            total_saving -= battery_cost / ((1 + interest_rate) ** replacement_year)
+
+        # Subtract V2G infrastructure cost (applied once, year 0)
+        if row['Charge_Type'] == 'Bidirectional':
+            total_saving -= v2g_cost
+        else:
+            # Adjust V1G cost for smart charging with 19 kW chargers
+            adjusted_v1g_cost = v1g_cost_19kw if row['Charging_Speed'] == 19 else v1g_cost
+            total_saving -= adjusted_v1g_cost
+
+        return total_saving
+
+    df['Saving_TOU'] = df.apply(lambda row: calculate_total_saving(row), axis=1)
+    df['Saving_EV'] = df.apply(lambda row: calculate_total_saving_ev(row), axis=1)
+    return df
+
+
+def plot_saving_ev_vs_distance(df, add_actual_lines=False, add_potential_lines=False, ylim=10000, text_size=18, title='title'):
     plt.figure(figsize=(8, 6))
 
     # Map charging type to markers
-    marker_map = {'v2g': 'o', 'smart': 's'}  # Replace with actual values in your data
-    label_map = {'v2g': 'V2G', 'smart': 'V1G'}  # Map to desired labels
+    marker_map = {'Bidirectional': 'o', 'Smart': 's'}  # Replace with actual values in your data
+    label_map = {'Bidirectional': 'V2G', 'Smart': 'V1G'}  # Map to desired labels
 
     # Define colors for each charging speed
     color_map = {6.6: 'blue', 12: 'green', 19: 'red'}  # Assign colors for each charging speed
 
     # Assign colors based on exact charging speeds
-    df['Color'] = df['Charging Speed'].map(color_map)
+    df['Color'] = df['Charging_Speed'].map(color_map)
 
     # Define discrete sizes based on battery capacity
     size_map = {66: 150, 70: 200, 75: 250, 80: 300, 85: 350, 100: 400}  # Adjust sizes as necessary
@@ -4045,7 +3980,7 @@ def plot_saving_ev_vs_distance(df, add_actual_lines=False, add_potential_lines=F
 
     # Plot data for each charging type without labels (we'll create custom legends)
     for charging_type, marker in marker_map.items():
-        subset = df[df['Charging Type'] == charging_type]
+        subset = df[df['Charge_Type'] == charging_type]
         plt.scatter(
             x=subset['distance'],
             y=subset['Saving_TOU'] / subset['average_smart_years'],
@@ -4077,14 +4012,13 @@ def plot_saving_ev_vs_distance(df, add_actual_lines=False, add_potential_lines=F
         )
 
     if add_potential_lines:
-
         plt.fill_betweenx(y=[750, 2800], x1=15000, x2=30000, color='pink', alpha=0.3)
         plt.fill_betweenx(y=[500, 2750], x1=0, x2=15000, color='green', alpha=0.3)
 
     # Adding labels and title
     plt.xlabel('Distance (mile)', fontsize=text_size)
-    plt.ylabel('Savings Compared to the Base Scenario ($/year)', fontsize=text_size)
-    plt.xticks(fontsize=text_size-2)
+    plt.ylabel(f'Savings Compared to the Base Scenario ($/year)\n{title}', fontsize=text_size - 1)
+    plt.xticks(fontsize=text_size - 4, rotation=45)
     plt.yticks(fontsize=text_size)
 
     # Format x-ticks and y-ticks with commas for thousands
@@ -4096,8 +4030,8 @@ def plot_saving_ev_vs_distance(df, add_actual_lines=False, add_potential_lines=F
 
     # Manually create legend entries for charging type with gray markers
     type_legend_elements = [
-        Line2D([0], [0], marker=marker_map['v2g'], color='w', label='V2G', markerfacecolor='gray', markersize=text_size),
-        Line2D([0], [0], marker=marker_map['smart'], color='w', label='V1G', markerfacecolor='gray', markersize=text_size)
+        Line2D([0], [0], marker=marker_map['Bidirectional'], color='w', label='V2G', markerfacecolor='gray', markersize=text_size),
+        Line2D([0], [0], marker=marker_map['Smart'], color='w', label='V1G', markerfacecolor='gray', markersize=text_size)
     ]
 
     # Manually create legend entries for charging speeds
@@ -4114,13 +4048,13 @@ def plot_saving_ev_vs_distance(df, add_actual_lines=False, add_potential_lines=F
     ]
 
     # Add the legend for charging type
-    type_legend = plt.legend(handles=type_legend_elements, title='Optimal\nCharging Type', loc='upper right', bbox_to_anchor=(1.4, 1.02), fontsize=text_size-3, title_fontsize=17)
+    type_legend = plt.legend(handles=type_legend_elements, title='Optimal\nCharging Type', loc='upper right', bbox_to_anchor=(1.50, 1.02), fontsize=text_size - 3, title_fontsize=17)
 
     # Add the legend for charging speed
-    speed_legend = plt.legend(handles=speed_legend_elements, title='Optimal\nCharging Speed', loc='upper right', bbox_to_anchor=(1.42, 0.75), fontsize=text_size-3, title_fontsize=17)
+    speed_legend = plt.legend(handles=speed_legend_elements, title='Optimal\nCharging Speed', loc='upper right', bbox_to_anchor=(1.54, 0.75), fontsize=text_size - 3, title_fontsize=17)
 
     # Add the legend for battery sizes
-    size_legend = plt.legend(handles=size_legend_elements, title='Vehicle\nBattery Size', loc='upper right', bbox_to_anchor=(1.42, 0.43), fontsize=text_size-3, title_fontsize=17)
+    size_legend = plt.legend(handles=size_legend_elements, title='Vehicle\nBattery Size', loc='upper right', bbox_to_anchor=(1.47, 0.41), fontsize=text_size - 3, title_fontsize=17)
 
     # Adding all legends to the plot
     plt.gca().add_artist(type_legend)
@@ -4128,32 +4062,23 @@ def plot_saving_ev_vs_distance(df, add_actual_lines=False, add_potential_lines=F
     plt.gca().add_artist(size_legend)
 
     # Adjust the layout to ensure everything fits within the figure
-    plt.tight_layout(rect=[0, 0, 0.81, 1])  # Adjust rect to make room for legends
+    plt.tight_layout(rect=[0, 0, 0.75, 1])  # Adjust rect to make room for legends
 
     # Save the plot
-    plt.savefig('batt.png', dpi=300)
+    plt.savefig(f'{title}_{ylim}.png', dpi=300)
 
     # Show the plot
     plt.show()
 
-# %%
-def plot_benefit_vs_degradation(df, num_vehicles, baseline_cost_scenario='last', title='title', lb=0, ub=1000, title_size=18, axis_text_size=18):
+
+def plot_benefit_vs_degradation(df, num_vehicles, Utility="PGE", title='title', lb=0, ub=1000, title_size=18, axis_text_size=18):
+
     df1 = df.copy()
-    df1 = df1[~((df1['Charging Type'] == 'smart') & (df1['V2G_Location'] == 'Home_Work'))]
-
+    df1 = df1[df1["Utility"] == Utility]
     # Convert Charging Speed to string and remove any trailing '.0'
-    df1['Charging Speed'] = df1['Charging Speed'].astype(str).str.rstrip('.0')
-    df1['Scenario'] = df1['Charging Type'] + ' - ' + df1['Charging Speed'] + ' - ' + df1['Plugged-in Sessions'] + ' - ' + df1['V2G_Location']
-
-    # Determine the baseline row based on user input
-    if baseline_cost_scenario == 'last':
-        baseline_row = df1.iloc[-1]
-    elif baseline_cost_scenario == 'second_last':
-        baseline_row = df1.iloc[-2]
-    elif isinstance(baseline_cost_scenario, int) and 0 <= baseline_cost_scenario < len(df1):
-        baseline_row = df1.iloc[baseline_cost_scenario]
-    else:
-        raise ValueError("Invalid baseline scenario specified. Use 'last', 'second_last', or an integer index within DataFrame range.")
+    df1['Charging_Speed'] = df1['Charging_Speed'].astype(str).str.rstrip('.0')
+    df1['Scenarios'] = df1['Charge_Type'] + ' - ' + df1['Charging_Speed'] + ' - ' + df1['Scenario'] + ' - ' + df1['V2G_Location']
+    baseline_row = df1.iloc[-1]
 
     # Calculate baseline cost
     baseline_cost = baseline_row['Electricity_Cost'] + baseline_row['Degradation_Cost']
@@ -4183,15 +4108,14 @@ def plot_benefit_vs_degradation(df, num_vehicles, baseline_cost_scenario='last',
     current_y = 2  # Current y position
 
     # Smart Charging Section: Add each speed separately with labels
-    smart_bar_offsets = np.linspace(-bar_height/20, bar_height/20, len(speeds)) / 2
+    smart_bar_offsets = np.linspace(-bar_height / 20, bar_height / 20, len(speeds)) / 2
 
     for idx, speed in enumerate(speeds):
         smart_data = df1[
-            (df1['Charging Type'] == 'smart') &
-            (df1['Plugged-in Sessions'] == 'Actual') &
-            (df1['Charging Speed'] == speed) &
-            (df1['V2G_Location'] == 'Home')
-        ]
+            (df1['Charge_Type'] == 'Smart') &
+            (df1['Charging_Speed'] == speed) &
+            (df1['V2G_Location'] == 'Home_Work')
+            ]
         if not smart_data.empty:
             degradation_cost = -smart_data['Degradation_Cost'].values[0]
             total_benefit = smart_data['Total_Benefit'].values[0]
@@ -4201,8 +4125,8 @@ def plot_benefit_vs_degradation(df, num_vehicles, baseline_cost_scenario='last',
             ax.barh(current_y + smart_bar_offsets[idx] + bar_height / 4, total_benefit, height=bar_height, color=smart_colors[idx])
 
             # Add text labels for Degradation and Benefit
-            ax.text(degradation_cost - 0.25, current_y + smart_bar_offsets[idx], f"${degradation_cost:.2f}", ha='right', va='center', fontsize=axis_text_size-2)
-            ax.text(total_benefit + 0.25, current_y + smart_bar_offsets[idx], f"${total_benefit:.2f}", ha='left', va='center', fontsize=axis_text_size-2)
+            ax.text(degradation_cost - 0.25, current_y + smart_bar_offsets[idx], f"${degradation_cost:.2f}", ha='right', va='center', fontsize=axis_text_size - 2)
+            ax.text(total_benefit + 0.25, current_y + smart_bar_offsets[idx], f"${total_benefit:.2f}", ha='left', va='center', fontsize=axis_text_size - 2)
 
             # Add individual labels for each speed
             y_positions.append(current_y + smart_bar_offsets[idx])
@@ -4217,49 +4141,53 @@ def plot_benefit_vs_degradation(df, num_vehicles, baseline_cost_scenario='last',
     ax.axhline(first_line_position, color='black', linestyle='--', linewidth=1)
     ax.axhline(second_line_position, color='black', linestyle='--', linewidth=1)
     ax.set_xlim(-lb, ub)
+
     # Helper function to plot side-by-side bars for V2G with locations
     def plot_v2g_section(data, section_label):
+        # global current_y  # Use global instead of nonlocal since it's in the main scope
         nonlocal current_y
         centers = []
 
         for speed in speeds:
-            bar_offsets = np.linspace(-bar_height*1.15, bar_height*1.15, len(locations)) / 2
+            bar_offsets = np.linspace(-bar_height * 1.15, bar_height * 1.15, len(locations)) / 2
             for i, loc in enumerate(locations):
-                loc_data = data[(data['Charging Speed'] == speed) & (data['V2G_Location'] == loc)]
+                loc_data = data[(data['Charging_Speed'] == speed) & (data['V2G_Location'] == loc)]
                 if not loc_data.empty:
                     degradation_cost = -loc_data['Degradation_Cost'].values[0]
                     total_benefit = loc_data['Total_Benefit'].values[0]
 
+                    # Plot bars for degradation and benefit
                     ax.barh(current_y + bar_offsets[i] + 0.5, degradation_cost, height=bar_height, color=v2g_colors['Degradation'])
                     ax.barh(current_y + bar_offsets[i] + bar_height, total_benefit, height=bar_height, color=v2g_colors[loc])
 
-                    # Add text labels for Degradation and Benefit
-                    ax.text(degradation_cost - 0.2, current_y + bar_offsets[i] + 0.5, f"${degradation_cost:.2f}", ha='right', va='center', fontsize=axis_text_size-2)
-                    ax.text(total_benefit + 0.2, current_y + bar_offsets[i] + 0.5, f"${total_benefit:.2f}", ha='left', va='center', fontsize=axis_text_size-2)
+                    # Add text labels
+                    ax.text(degradation_cost - 0.2, current_y + bar_offsets[i] + 0.5, f"${degradation_cost:.2f}", ha='right', va='center', fontsize=axis_text_size - 2)
+                    ax.text(total_benefit + 0.2, current_y + bar_offsets[i] + 0.5, f"${total_benefit:.2f}", ha='left', va='center', fontsize=axis_text_size - 2)
 
-                    # Construct label with speed and abbreviated location
+                    # Add labels
                     y_positions.append(current_y + bar_offsets[i] + 0.5)
                     scenario_labels.append(f"{speed} kW {location_labels[loc]}")
                     centers.append(current_y + bar_offsets[i])
 
-            current_y += 1.5  # Space between speeds
-        return np.mean(centers)  # Center for annotation
+            current_y += 1.5  # Update the y position
+        return np.mean(centers)  # Return the center position
 
-    # Plot V2G Actual section by all speeds and store its center
-    v2g_actual_data = df1[(df1['Charging Type'] == 'v2g') & (df1['Plugged-in Sessions'] == 'Actual')]
+        # Plot V2G Actual section by all speeds and store its center
+
+    v2g_actual_data = df1[(df1['Charge_Type'] == 'Bidirectional') & (df1['Scenario'] == 'No_change')]
     if not v2g_actual_data.empty:
         center = plot_v2g_section(v2g_actual_data, "V2G / No Change in Plugging Behavior")
         group_positions.append(first_line_position + 2.75)
 
     # Plot V2G Potential section by all speeds and store its center
-    v2g_potential_data = df1[(df1['Charging Type'] == 'v2g') & (df1['Plugged-in Sessions'] == 'Potential')]
+    v2g_potential_data = df1[(df1['Charge_Type'] == 'Bidirectional') & (df1['Scenario'] == 'With_change')]
     if not v2g_potential_data.empty:
         center = plot_v2g_section(v2g_potential_data, "V2G / Plugging-in When Parked")
         group_positions.append(second_line_position + 2.75)
 
     # Customize y-axis labels with all speeds retained
     ax.set_yticks(y_positions)
-    ax.set_yticklabels(scenario_labels, fontsize=axis_text_size-2)
+    ax.set_yticklabels(scenario_labels, fontsize=axis_text_size - 2)
     ax.axvline(0, color='grey', linewidth=1)
     ax.set_xlabel('Benefit ($) / Degradation Cost ($)', fontsize=title_size)
     ax.grid(True, axis='x', linestyle='--', alpha=0.7)
@@ -4271,7 +4199,7 @@ def plot_benefit_vs_degradation(df, num_vehicles, baseline_cost_scenario='last',
     # Add group annotations to the right side of the plot within the visible range
     group_labels = ['V1G', 'V2G\nNo Change in\nPlugging Behavior', 'V2G\nPlugging-in\nWhen Parked']
     for pos, label in zip(group_positions, group_labels):
-        ax.text(x_annotation_position, pos, label, ha='center', va='center', fontsize=title_size-2, weight='bold', rotation=90)
+        ax.text(x_annotation_position, pos, label, ha='center', va='center', fontsize=title_size - 2, weight='bold', rotation=90)
 
     # Correct legend creation by wrapping smart_patches[0] in brackets
     smart_patches = [mpatches.Patch(color=smart_colors[i], label=f"Smart Charging") for i in range(len(speeds))]
@@ -4281,19 +4209,17 @@ def plot_benefit_vs_degradation(df, num_vehicles, baseline_cost_scenario='last',
     ]
     degradation_patch = mpatches.Patch(color=v2g_colors['Degradation'], label="Battery Degradation")
 
-    ax.legend(handles=[smart_patches[0]] + v2g_patches + [degradation_patch], loc='lower right', fontsize=axis_text_size-2)
+    ax.legend(handles=[smart_patches[0]] + v2g_patches + [degradation_patch], loc='lower right', fontsize=axis_text_size - 2)
 
     # Customize x-axis ticks and labels
     ax.set_xticks([ax.get_xlim()[0], 0, ax.get_xlim()[1]])
-    ax.set_xticklabels([f'$ Loss', f'Baseline Cost (${round((baseline_cost/num_vehicles),2)})', '$ Savings'], fontsize=axis_text_size-3)
+    ax.set_xticklabels([f'$ Loss', f'Baseline Cost (${round((baseline_cost / num_vehicles), 2)})', '$ Savings'], fontsize=axis_text_size - 3)
     ax.set_ylabel("Charging Scenarios by Charger Speed and Deployment Location", fontsize=title_size)
     ax.set_xlabel("Net Benefit and Associated Degradation Cost per Vehicle ($)", fontsize=title_size)
 
     plt.savefig(f'{title}.png', bbox_inches='tight', dpi=300)
     plt.tight_layout()
     plt.show()
-
-# %%
 
 
 def plot_cdf_by_group(df, df2, column_to_plot, xlabel, figsize=(10, 6)):
@@ -4302,6 +4228,7 @@ def plot_cdf_by_group(df, df2, column_to_plot, xlabel, figsize=(10, 6)):
         sorted_data = np.sort(data)
         cdf = np.arange(1, len(sorted_data) + 1) / len(sorted_data)
         plt.plot(sorted_data, cdf, label=label, linewidth=2, **kwargs)
+
     group_by_columns = ['Charging Type', 'Charging Speed', 'Tariff']
     # filtered_df = df[df['Tariff'] == 'RT Rate - Home']
     filtered_df = df
@@ -4344,7 +4271,6 @@ def plot_cdf_by_group(df, df2, column_to_plot, xlabel, figsize=(10, 6)):
     # Display the plot
     plt.show()
 
-# %%
 
 def plot_styled_box_by_scenario(df1, baseline_df1, xaxis, x_column, y_column, charge_type_column, tariff_column, behavior_column, speed_column, xlimit):
     df = df1.copy()
@@ -4401,7 +4327,7 @@ def plot_styled_box_by_scenario(df1, baseline_df1, xaxis, x_column, y_column, ch
             y_pos += base_spacing_smart
 
             # Add text for the Baseline
-            plt.text(xlimit * 0.7, y_pos - 2*stack_spacing_smart, f"#{len(scenario_data)}", fontsize=10, va='center', color='black', ha='center')
+            plt.text(xlimit * 0.7, y_pos - 2 * stack_spacing_smart, f"#{len(scenario_data)}", fontsize=10, va='center', color='black', ha='center')
 
         else:
             if 'v2g' in scenario_name.lower():
@@ -4486,7 +4412,7 @@ def plot_styled_box_by_scenario(df1, baseline_df1, xaxis, x_column, y_column, ch
 
     plt.tight_layout()
     plt.show()
-# %%
+
 
 def plot_styled_box_by_scenarioP(df1, baseline_df1, xaxis, x_column, y_column, charge_type_column, tariff_column, behavior_column, speed_column, xlimit):
     df = df1.copy()
@@ -4543,7 +4469,7 @@ def plot_styled_box_by_scenarioP(df1, baseline_df1, xaxis, x_column, y_column, c
             y_pos += base_spacing_smart
 
             # Add text for the Baseline
-            plt.text(xlimit * 0.7, y_pos - 2*stack_spacing_smart, f"#{len(scenario_data)}", fontsize=10, va='center', color='black', ha='center')
+            plt.text(xlimit * 0.7, y_pos - 2 * stack_spacing_smart, f"#{len(scenario_data)}", fontsize=10, va='center', color='black', ha='center')
 
         else:
             if 'v2g' in scenario_name.lower():
@@ -4630,7 +4556,6 @@ def plot_styled_box_by_scenarioP(df1, baseline_df1, xaxis, x_column, y_column, c
     plt.tight_layout()
     plt.show()
 
-# %%
 
 def plot_filtered_data(df, ghg_value, chtype):
     # Fill NaN values in all columns (if any) to consider them in one group
@@ -4656,9 +4581,6 @@ def plot_filtered_data(df, ghg_value, chtype):
     plt.tight_layout()
     plt.grid(True)
     plt.show()
-
-
-
 
 
 def calculate_benefit(row, baseline_rows):
@@ -4707,29 +4629,40 @@ def plot_benefit_by_scenario(df, scenario_filter='Actual', charging_speed=19, fz
     plt.show()
     return filtered_df
 
-def calculate_ghg_difference(df1, df2):
+
+def calculate_ghg_difference(df1, df2, df3):
+    df3.rename(columns={df3.columns[0]: 'GHG'}, inplace=True)
+    df2.loc[df2["Rate_Type"] == "EV", "Rate_Type"] = "EV_Rate"
+    df2.loc[df2["Rate_Type"] == "RT", "Rate_Type"] = "RT_Rate"
+    # Merge the GHG values based on the Hour column
+    df1 = pd.merge(df1, df3, left_on="Hour", right_index=True, how="left")
+    df2 = pd.merge(df2, df3, left_on="Hour", right_index=True, how="left")
     # Calculate total GHG for CDF_N and costs_A_TOU_rate_hourly_in
-    df1["GHG_Total"] = df1["GHG_value"] * abs(df1["X_CHR"])
-    df2["GHG_Total_actual"] = df2["GHG_value"] * df2["X_CHR"]
+    df1["GHG_Total"] = df1["GHG"] * abs(df1["X_CHR"])
+    df1['Charging'] = df1['X_CHR'].apply(lambda x: x if x > 0 else 0)
+    df1['Discharging'] = df1['X_CHR'].apply(lambda x: -x if x < 0 else 0)
+    df1['GHG_Charging'] = df1['Charging'] * df1['GHG']
+    df1['GHG_Discharging'] = df1['Discharging'] * df1['GHG']
+    df1['GHG_Net'] = df1['GHG_Charging'] - df1['GHG_Discharging']
+    df2["GHG_Total_actual"] = df2["GHG"] * df2["X_CHR"]
 
     # Group CDF_N by specified columns and sum GHG_Total
-    grouped = df1.groupby(["Vehicle", "Charging Type", "Charging Speed", "GHG Cost", "Tariff", "Charging_Behavior"])["GHG_Total"].sum().reset_index(drop=False)
+    grouped = df1.groupby(["Vehicle", "Charge_Type", "Charging_Speed", "Rate_Type", "Utility"])[["GHG_Charging","GHG_Discharging", "GHG_Net"]].sum().reset_index(drop=False)
 
     # Sum GHG_Total_actual by Vehicle for costs_A_TOU_rate_hourly_in
-    costs_A_TOU_rate_hourly_in_sum = df2.groupby("Vehicle")["GHG_Total_actual"].sum().reset_index(drop=False)
+    costs_A_TOU_rate_hourly_in_sum = df2.groupby(["Vehicle", "Rate_Type", "Utility"])["GHG_Total_actual"].sum().reset_index(drop=False)
 
     # Merge CDF_N_grouped with costs_A_TOU_rate_hourly_in_sum on Vehicle
-    grouped = pd.merge(grouped, costs_A_TOU_rate_hourly_in_sum, on="Vehicle", how="left")
+    grouped = pd.merge(grouped, costs_A_TOU_rate_hourly_in_sum, on=["Vehicle", "Utility", "Rate_Type"], how="left")
 
     # Calculate the difference between GHG_Total_actual and GHG_Total
-    grouped["diff"] = (grouped["GHG_Total_actual"] - grouped["GHG_Total"]) / 1000000
+    grouped["diff"] = (grouped["GHG_Total_actual"] - grouped["GHG_Net"]) / 1000000
     return grouped
 
 
 def calculate_cost_difference(df1, df2):
-
     # Group CDF_N by specified columns and sum GHG_Total
-    grouped = df1.groupby(["Vehicle", "Charging Type", "Charging Speed", "GHG Cost", "Tariff", "Charging_Behavior"])["Electricity_Cost"].sum().reset_index(drop=False)
+    grouped = df1.groupby(["Vehicle", "Charge_Type", "Charging_Speed", "Scenario", "Rate_Type", "V2G_Location"])["Electricity_Cost"].sum().reset_index(drop=False)
 
     # Sum GHG_Total_actual by Vehicle for costs_A_TOU_rate_hourly_in
     costs_A_TOU_rate_hourly_in_sum = df2.groupby("Vehicle")["Electricity_Cost"].sum().reset_index(drop=False)
@@ -4780,7 +4713,7 @@ def draw_rose_chart_parking(df, text_size=13):
         # Display average parking time and proportion as percentage
         ax.text(angle + bar.get_width() / 2, bar.get_height() + 10,
                 f'{proportion * 100:.1f}%      ',
-                ha='center', fontsize=text_size +5)
+                ha='center', fontsize=text_size + 5)
 
     # Customize the chart
     ax.set_theta_offset(np.pi / 2)
@@ -4796,6 +4729,7 @@ def draw_rose_chart_parking(df, text_size=13):
     plt.figtext(0.5, 0.02, 'Time by Location (minutes)', ha='center', fontsize=text_size + 5)
     plt.savefig('rose_chart_parking_with_proportions_full_circle.png', bbox_inches='tight', dpi=600)
     plt.show()
+
 
 def draw_rose_chart_charging(df1, text_size=13):
     df = df1.copy()
@@ -4882,19 +4816,20 @@ def draw_rose_chart_charging(df1, text_size=13):
     plt.savefig('rose_chart_charging_with_proportions_full_circle.png', bbox_inches='tight', dpi=600)
     plt.show()
 
+
 def calculate_charge_difference(df1):
     # Filter out rows where X_CHR is less than or equal to 0
     df1 = df1[df1["X_CHR"] > 0]
 
     # Group by the relevant columns and sum X_CHR
-    grouped = df1.groupby(["Vehicle", "Charging Type", "Charging Speed", "GHG Cost", "Tariff", "Charging_Behavior"])["X_CHR"].sum().reset_index(drop=False)
+    grouped = df1.groupby(["Vehicle", "Charge_Type", "Charging_Speed", "V2G_Location", "Rate_Type", "Scenario"])["X_CHR"].sum().reset_index(drop=False)
 
     # Step 1: Get one row for each vehicle where the Charging Type is "smart"
-    smart_charging = grouped[grouped["Charging Type"] == "smart"].drop_duplicates(subset=["Vehicle"], keep="first")
+    smart_charging = grouped[grouped["Charge_Type"] == "Smart"].drop_duplicates(subset=["Vehicle"], keep="first")
 
     # Step 2: Merge the baseline (smart charging X_CHR) back into the original grouped DataFrame
     grouped = grouped.merge(smart_charging[["Vehicle", "X_CHR"]], on="Vehicle", how="left", suffixes=("", "_baseline"))
-    grouped = grouped[grouped["Charging Type"] != "smart"]
+    grouped = grouped[grouped["Charge_Type"] != "Smart"]
     grouped["diff_kwh"] = grouped["X_CHR"] - grouped["X_CHR_baseline"]
     grouped["virtual_mile"] = grouped["diff_kwh"] * 2.6
     return grouped
@@ -4904,29 +4839,30 @@ def draw_box_plot(df1, text_size=13):
     df = df1.copy()
 
     # Step 1: Remove the '- Home' suffix from the Tariff column
-    df['Tariff'] = df['Tariff'].str.replace(' - Home', '', regex=False)
+    # df['Tariff'] = df['Tariff'].str.replace(' - Home', '', regex=False)
 
     # Step 2: Rename behaviors (Actual -> No change in plugging behavior, Potential -> Plugging in when parked)
-    df['Charging_Behavior'] = df['Charging_Behavior'].replace({
-        'Actual': 'No change in plugging behavior',
-        'Potential': 'Plugging in when parked'
+    df['Scenario'] = df['Scenario'].replace({
+        'No_change': 'No change in plugging behavior',
+        'With_change': 'Plugging in when parked'
     })
 
     # Step 3: Convert Charging Speed to string, ensure it's categorized properly and ordered
-    df['Charging Speed'] = df['Charging Speed'].astype(str).str.rstrip('.0')
-    df['Charging Speed'] = pd.Categorical(df['Charging Speed'], categories=['6.6', '12', '19'], ordered=True)
+    df['Charging_Speed'] = df['Charging_Speed'].astype(str).str.rstrip('.0')
+    df['Charging_Speed'] = pd.Categorical(df['Charging_Speed'], categories=['6.6', '12', '19'], ordered=True)
 
     # Step 4: Combine Charging_Behavior, Tariff, and Charging Speed into one column for y-axis
-    df['Charging_Info'] = df['Charging_Behavior'] + ' | ' + df['Tariff']
+    df['Charging_Info'] = df['Scenario'] + ' | ' + df['Rate_Type']
 
     # Step 5: Define a specific order for the y-axis categories
     behavior_order = [
-        'Plugging in when parked | RT Rate',
-        'Plugging in when parked | EV Rate',
-        'No change in plugging behavior | RT Rate',
-        'No change in plugging behavior | EV Rate'
+        'Plugging in when parked | RT_Rate',
+        'Plugging in when parked | EV_Rate',
+        'No change in plugging behavior | RT_Rate',
+        'No change in plugging behavior | EV_Rate'
     ]
     df['Charging_Info'] = pd.Categorical(df['Charging_Info'], categories=behavior_order, ordered=True)
+    df = df[~df["Charging_Info"].isna()]
 
     # Step 6: Draw the box plot (horizontal orientation) and reverse the charging speed order
     fig, ax = plt.subplots(figsize=(8, 6))
@@ -4935,12 +4871,12 @@ def draw_box_plot(df1, text_size=13):
     if box_colors is None:
         box_colors = sns.color_palette("Set2", 3)  # Default color palette for 3 speeds
 
-    sns.boxplot(y="Charging_Info", x="virtual_mile", hue="Charging Speed", data=df, hue_order=['19', '12', '6.6'], palette=box_colors)
+    sns.boxplot(y="Charging_Info", x="virtual_mile", hue="Charging_Speed", data=df, hue_order=['19', '12', '6.6'], palette=box_colors)
     # Example usage with custom colors
     # Step 7: Customize the legend to include 'kW'
     handles, labels = ax.get_legend_handles_labels()
     labels = [f'{label} kW' for label in labels]  # Add kW to the legend labels
-    ax.legend(handles, labels, title="Charging Speed", loc="best", fontsize=text_size, title_fontsize=text_size)
+    ax.legend(handles, labels, title="Charging_Speed", loc="best", fontsize=text_size, title_fontsize=text_size)
 
     # Step 8: Manually set the y-axis labels with '\n' (including rotation and alignment)
     primary_labels = [
@@ -4951,10 +4887,10 @@ def draw_box_plot(df1, text_size=13):
     ]  # Manual labels with '\n'
 
     secondary_labels = [
-        'RT Rate',
-        'EV Rate',
-        'RT Rate',
-        'EV Rate'
+        'RT_Rate',
+        'EV_Rate',
+        'RT_Rate',
+        'EV_Rate'
     ]  # Tariff labels for the secondary y-axis
 
     # Set primary y-axis ticks and manual labels
@@ -5045,7 +4981,7 @@ def plot_box_by_tariff(df1, df2, fz=18, figtitle="title", show_dollar=False):
     y_labels_right = ["V2G", "V2G", "V1G", "V1G"]
     ax2.set_ylim(ax.get_ylim())  # Sync limits
     ax2.set_yticks([0, 1, 2, 3])
-    ax2.set_yticklabels(y_labels_right, rotation=90, va='center', ha="left", fontsize=fz+2)
+    ax2.set_yticklabels(y_labels_right, rotation=90, va='center', ha="left", fontsize=fz + 2)
 
     # Add dashed lines to separate V1G and V2G groups
     plt.axhline(1.5, color='grey', linestyle='--', linewidth=1)
@@ -5058,7 +4994,7 @@ def plot_box_by_tariff(df1, df2, fz=18, figtitle="title", show_dollar=False):
     plt.legend(handles=handles, title="Charging Speed", loc='lower right', fontsize=fz, title_fontsize=fz)
 
     # Set title and labels
-    ax.set_xlabel(figtitle, fontsize=fz+2)
+    ax.set_xlabel(figtitle, fontsize=fz + 2)
 
     # Adjust the x-axis ticks based on show_dollar parameter
     if show_dollar:
@@ -5070,3 +5006,297 @@ def plot_box_by_tariff(df1, df2, fz=18, figtitle="title", show_dollar=False):
     plt.tight_layout()
     plt.savefig(f'{figtitle}.png', bbox_inches='tight', dpi=300)
     plt.show()
+
+
+def xlsx_read(file_path):
+    try:
+        # Load available sheet names
+        xls = pd.ExcelFile(file_path)
+        sheet_names = xls.sheet_names
+
+        # Check if 'Total' and 'Costs' exist
+        total_sheet = 'Total Costs' if 'Total Costs' in sheet_names else sheet_names[0]
+        individual_sheet = 'Individual Costs' if 'Individual Costs' in sheet_names else sheet_names[0]
+
+        # Read the sheets
+        df_total = pd.read_excel(file_path, sheet_name=total_sheet)
+        df_individual = pd.read_excel(file_path, sheet_name=individual_sheet)
+
+        return df_total, df_individual
+
+    except Exception as e:
+        print(f"Error reading {file_path}: {e}")
+        return pd.DataFrame(), pd.DataFrame()
+
+
+def read_all_results(base_dir, rate_types, utilities, locations):
+    total_costs_list = []
+    costs_list = []
+
+    for scenario in ["normal", "parking"]:
+        scenario_path = os.path.join(base_dir, scenario)
+
+        for file in os.listdir(scenario_path):
+            if file.endswith(".xlsx"):
+                file_path = os.path.join(scenario_path, file)
+
+                try:
+                    # Extract Rate_Type
+                    match = re.search(r"(EV_Rate|RT_Rate|TOU)", file)
+                    rate_type = match.group(1) if match else "Unknown"
+
+                    # Extract Utility
+                    utility = re.search(r"(pge|sce|sdge|smud)", file, re.IGNORECASE).group(0).upper()
+
+                    # Extract V2G_Location
+                    location_part = file.split("_")[3]
+                    v2g_location = "Home_Work" if "Work" in location_part else "Home"
+
+                    # Extract Charge Type (v2g → Bidirectional, otherwise Smart)
+                    charge_type = "Bidirectional" if "v2g" in file.lower() else "Smart"
+
+                    # Extract Charging Speed (6.6kW, 12kW, 19kW)
+                    speed_match = re.search(r"(\d{1,2}\.?\d*)kw", file.lower())
+                    charging_speed = f"{speed_match.group(1)}kW" if speed_match else "Unknown"
+
+                    # Read the Excel file
+                    df_total, df_costs = xlsx_read(file_path)
+
+                    # Add metadata columns
+                    df_total["Scenario"] = "No_change" if scenario == "normal" else "With_change"
+                    df_costs["Scenario"] = "No_change" if scenario == "normal" else "With_change"
+                    df_total["Rate_Type"] = rate_type
+                    df_costs["Rate_Type"] = rate_type
+                    df_total["Utility"] = utility
+                    df_costs["Utility"] = utility
+                    df_total["V2G_Location"] = v2g_location
+                    df_costs["V2G_Location"] = v2g_location
+                    df_total["Charge_Type"] = charge_type
+                    df_costs["Charge_Type"] = charge_type
+                    df_total["Charging_Speed"] = charging_speed
+                    df_costs["Charging_Speed"] = charging_speed
+
+                    total_costs_list.append(df_total)
+                    costs_list.append(df_costs)
+
+                except Exception as e:
+                    print(f"Error processing file {file}: {e}")
+
+    total_costs_combined = pd.concat(total_costs_list, ignore_index=True) if total_costs_list else pd.DataFrame()
+    costs_combined = pd.concat(costs_list, ignore_index=True) if costs_list else pd.DataFrame()
+
+    return total_costs_combined, costs_combined
+
+
+def read_combined_costs(base_dir):
+    """
+    Reads cost files with two naming patterns:
+    - 'Actual_<Utility>_<Rate>_cost_hourly_in.xlsx'
+    - 'Actual_<Utility>_<Rate>_cost.xlsx'
+    """
+    hourly_costs_list = []
+    aggregated_costs_list = []
+
+    # Loop through all files in the base directory
+    for file in os.listdir(base_dir):
+        if file.endswith(".xlsx"):
+            file_path = os.path.join(base_dir, file)
+            try:
+                # Extract metadata using regex
+                utility_match = re.search(r"Actual_([A-Z]+)_", file, re.IGNORECASE)
+                rate_match = re.search(r"_(EV|TOU|RT)_cost", file, re.IGNORECASE)
+                utility = utility_match.group(1).upper() if utility_match else "Unknown"
+                rate_type = rate_match.group(1) if rate_match else "Unknown"
+
+                if "hourly_in" in file.lower():
+                    # Hourly costs file
+                    df_hourly = pd.read_excel(file_path)
+                    df_hourly["Utility"] = utility
+                    df_hourly["Rate_Type"] = rate_type
+                    df_hourly["File_Type"] = "Hourly"
+                    hourly_costs_list.append(df_hourly)
+
+                elif "_cost.xlsx" in file.lower():
+                    # Aggregated costs file
+                    df_aggregated = pd.read_excel(file_path)
+                    df_aggregated["Utility"] = utility
+                    df_aggregated["Rate_Type"] = rate_type
+                    df_aggregated["File_Type"] = "Aggregated"
+                    aggregated_costs_list.append(df_aggregated)
+
+            except Exception as e:
+                print(f"Error reading {file_path}: {e}")
+
+    # Combine all results
+    costs_combined_hourly = pd.concat(hourly_costs_list, ignore_index=True) if hourly_costs_list else pd.DataFrame()
+    costs_combined_aggregated = pd.concat(aggregated_costs_list, ignore_index=True) if aggregated_costs_list else pd.DataFrame()
+    total_actual= costs_combined_aggregated.groupby(["Utility", "Rate_Type"])[["Electricity_Cost", "Degradation_Cost", "GHG_Cost", "Total Charge"]].sum().reset_index(drop=False)
+
+
+    return costs_combined_hourly, costs_combined_aggregated, total_actual
+
+
+def json_file_read_combined(base_dir, flatten_veh_data, scenario, utility_filter):
+    results_list = []
+    hourly_data_list = []
+
+    # Path for the selected scenario
+    scenario_path = os.path.join(base_dir, scenario)
+
+    # Loop through JSON files for the specified utility
+    for file in os.listdir(scenario_path):
+        if file.endswith(".json") and utility_filter.lower() in file.lower() and "Home" in file:
+            file_path = os.path.join(scenario_path, file)
+
+            try:
+                # Extract metadata from file name
+                charge_type = "Bidirectional" if "v2g" in file.lower() else "Smart"
+
+                speed_match = re.search(r"(\d{1,2}\.?\d*)kw", file.lower())
+                charging_speed = f"{speed_match.group(1)}kW" if speed_match else "Unknown"
+
+                rate_match = re.search(r"_(EV_Rate|TOU|RT_Rate)", file)
+                rate_type = rate_match.group(1) if rate_match else "Unknown"
+
+                location_part = re.search(r"(\[.*?\])", file)
+                v2g_location = "Home_Work" if "Work" in location_part.group(1) else "Home"
+
+                # Read JSON file
+                df = pd.read_json(file_path)
+
+                # Add metadata columns
+                df["Charge_Type"] = charge_type
+                df["Charging_Speed"] = charging_speed
+                df["Rate_Type"] = rate_type
+                df["Utility"] = utility_filter.upper()
+                df["V2G_Location"] = v2g_location
+                df["Scenario"] = "No_change" if scenario == "normal" else "With_change"
+
+                # Merge with correct flattened data
+                df = pd.merge(df, flatten_veh_data[["Vehicle", "Hour", "charging_indicator", "location"]],
+                              how="left", on=["Vehicle", "Hour"])
+
+                # Add to combined hourly data list
+                hourly_data_list.append(df)
+
+                # Process discharging data
+                df_discharge = df[(df["X_CHR"] <= 0) & (df["charging_indicator"] == 1)]
+                df_discharge = df_discharge[df_discharge["Charge_Type"] == "Bidirectional"]
+
+                # Aggregate data
+                grouped_df = df_discharge.groupby(['Hour', "Charging_Speed", "Rate_Type", "Utility", "V2G_Location"]).agg(
+                    X_CHR_Sum=('X_CHR', 'sum'),
+                    X_CHR_Count=('X_CHR', 'count')
+                ).reset_index()
+
+                # Calculate total power and utilization rate
+                grouped_df["Total_power"] = grouped_df["Charging_Speed"].str.replace("kW", "").astype(float) * grouped_df["X_CHR_Count"]
+                grouped_df["Utilization Rate"] = abs(grouped_df["X_CHR_Sum"] / grouped_df["Total_power"]) * 100
+
+                # Add hour of day and peak indicator
+                grouped_df["Hour_of_day"] = grouped_df["Hour"] % 24
+                grouped_df["Peak"] = grouped_df["Hour_of_day"].apply(lambda x: "Peak" if 16 <= x <= 21 else "Non-Peak")
+
+                # Append to results list
+                results_list.append(grouped_df)
+
+            except Exception as e:
+                print(f"Error processing file {file_path}: {e}")
+
+    # Combine all results
+    combined_result = pd.concat(results_list, ignore_index=True) if results_list else pd.DataFrame()
+    combined_hourly_data = pd.concat(hourly_data_list, ignore_index=True) if hourly_data_list else pd.DataFrame()
+
+    return combined_result, combined_hourly_data
+
+
+def process_and_save_all(base_dir, flatten_veh_data_normal, flatten_veh_data_parking):
+    scenarios = ["normal", "parking"]
+    utilities = ["PGE", "SCE", "SDGE", "SMUD"]
+
+    for scenario in scenarios:
+        for utility in utilities:
+            print(f"Processing {scenario.upper()} scenario for {utility}...")
+
+            # Select the correct flattened vehicle data
+            flatten_veh_data = flatten_veh_data_normal if scenario == "normal" else flatten_veh_data_parking
+
+            # Run the function to get combined results
+            combined_result, combined_hourly_data = json_file_read_combined(base_dir, flatten_veh_data, scenario, utility)
+
+            # Define file names
+            result_file = f"combined_result_{scenario}_{utility}.pkl"
+            hourly_file = f"combined_hourly_data_{scenario}_{utility}.pkl"
+
+            # Save results as pickle
+            combined_result.to_pickle(result_file)
+            combined_hourly_data.to_pickle(hourly_file)
+
+            print(f"Saved: {result_file} and {hourly_file}")
+
+
+def process_and_plot_utility_data(utility_name, df2, df3, text_size=14):
+    # File paths
+    base_path = "/Users/haniftayarani/V2G_Project/Hourly_data/"
+    normal_path = f"{base_path}combined_hourly_data_normal_{utility_name}.pkl"
+    parking_path = f"{base_path}combined_hourly_data_parking_{utility_name}.pkl"
+
+    # Load data
+    combined_hourly_data_normal = pd.read_pickle(normal_path)
+    combined_hourly_data_parking = pd.read_pickle(parking_path)
+
+    # Process data
+    combined_hourly_data_normal['Charging_Speed'] = combined_hourly_data_normal['Charging_Speed'].str.replace('kW', '').astype(float)
+    combined_hourly_data_parking['Charging_Speed'] = combined_hourly_data_parking['Charging_Speed'].str.replace('kW', '').astype(float)
+
+    # Filter and compute electricity paid
+    CDF_N = combined_hourly_data_normal.loc[
+        (combined_hourly_data_normal["X_CHR"] != 0) & (combined_hourly_data_normal["Scenario"] == "No_change")
+        ].copy()
+    CDF_N["Electricity_Paid"] = CDF_N["Electricity_Cost"] / abs(CDF_N["X_CHR"])
+
+    CDF_P = combined_hourly_data_parking.loc[
+        (combined_hourly_data_parking["X_CHR"] != 0) & (combined_hourly_data_parking["Scenario"] == "With_change")
+        ].copy()
+    CDF_P["Electricity_Paid"] = CDF_P["Electricity_Cost"] / abs(CDF_P["X_CHR"])
+
+    # Calculate charge differences
+    charged_N = calculate_charge_difference(CDF_N)
+    charged_P = calculate_charge_difference(CDF_P)
+
+    # Combine results and draw plot
+    charged = pd.concat([charged_N, charged_P], axis=0)
+    draw_box_plot(charged, text_size=text_size)
+
+    CDF_N_grouped_g = calculate_ghg_difference(CDF_N, df2, df3)
+    CDF_N_grouped_c = calculate_cost_difference(CDF_N, df2[df2["Utility"] == utility_name])
+
+    CDF_P_grouped_g = calculate_ghg_difference(CDF_P, df2, df3)
+    CDF_P_grouped_c = calculate_cost_difference(CDF_P, df2[df2["Utility"] == utility_name])
+
+    return CDF_N_grouped_g, CDF_N_grouped_c, CDF_P_grouped_g, CDF_P_grouped_c
+
+
+def all_rates(df1, df2):
+    df2.rename(columns={"Total Charge": "X_CHR"}, inplace=True)
+    All_rates_total_df = pd.concat([df1, df2], axis=0)
+    All_rates_total_df.loc[All_rates_total_df["Scenario"].isna(), "Scenario"] = "No_change"
+    All_rates_total_df.loc[All_rates_total_df["V2G_Location"].isna(), "V2G_Location"] = "None"
+    All_rates_total_df.loc[All_rates_total_df["Charge_Type"].isna(), "Charge_Type"] = "Conventional"
+    All_rates_total_df.loc[All_rates_total_df["Charging_Speed"].isna(), "Charging_Speed"] = "6.6kW"
+    All_rates_total_df.loc[All_rates_total_df["Rate_Type"] == "EV", "Rate_Type"] = "EV_Rate"
+    All_rates_total_df.loc[All_rates_total_df["Rate_Type"] == "RT", "Rate_Type"] = "RT_Rate"
+    All_rates_total_df['Charging_Speed'] = All_rates_total_df['Charging_Speed'].str.replace('kW', '').astype(float)
+    TOU_rates_total_df = All_rates_total_df.loc[(All_rates_total_df["Rate_Type"] == "TOU")]
+    EV_rates_total_df = All_rates_total_df.loc[(All_rates_total_df["Rate_Type"] == "EV_Rate")]
+    RT_rates_total_df = All_rates_total_df.loc[(All_rates_total_df["Rate_Type"] == "RT_Rate")]
+    RT_rates_total_TOU_df = All_rates_total_df.loc[((All_rates_total_df["Rate_Type"] == "RT_Rate") & (All_rates_total_df["Charge_Type"] != "Conventional")) |
+                                                   ((All_rates_total_df["Rate_Type"] == "TOU") & (All_rates_total_df["Charge_Type"] == "Conventional"))]
+    RT_rates_total_EV_df = All_rates_total_df.loc[((All_rates_total_df["Rate_Type"] == "RT_Rate") & (All_rates_total_df["Charge_Type"] != "Conventional")) |
+                                                  ((All_rates_total_df["Rate_Type"] == "EV_Rate") & (All_rates_total_df["Charge_Type"] == "Conventional"))]
+
+    All_rates_total_6_df = All_rates_total_df.loc[(All_rates_total_df["Charge_Type"] == "Conventional") | (All_rates_total_df["Charging_Speed"] == 6.6)]
+    All_rates_total_12_df = All_rates_total_df.loc[(All_rates_total_df["Charge_Type"] == "Conventional") | (All_rates_total_df["Charging_Speed"] == 12)]
+    All_rates_total_19_df = All_rates_total_df.loc[(All_rates_total_df["Charge_Type"] == "Conventional") | (All_rates_total_df["Charging_Speed"] == 19)]
+    return All_rates_total_df, TOU_rates_total_df, EV_rates_total_df, RT_rates_total_df, RT_rates_total_TOU_df, RT_rates_total_EV_df, All_rates_total_6_df, All_rates_total_12_df, All_rates_total_19_df
+

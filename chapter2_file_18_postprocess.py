@@ -3,11 +3,11 @@ import pandas as pd
 import warnings
 import json
 import os
+import re
 import logging
-from parking import (xlsx_read, json_file_read, plot_price_chart_EVRATE, plot_price_chart_TOU, plot_cost_comparison_EV, plot_cost_comparison_TOU, 
-                     plot_cost_comparison_RT, stacked_violin_plot, add_tariff_name, plot_ghg_distribution_seasons, violin_input, filter_rows_by_word, add_tariff_name2,add_tariff_name3,
-                     process_charging_data, plotting_demand_heatmap,plot_benefit_by_scenario, calculate_ghg_difference,plot_styled_box_by_scenarioP, calculate_cost_difference,
-                     plot_styled_box_by_scenario, plot_cdf_by_group, plot_benefit_vs_degradation, calculate_charge_difference, plot_box_by_tariff, draw_box_plot)
+from parking import (plot_price_chart_EVRATE, plot_price_chart_TOU, read_all_results, read_combined_costs,
+                     plot_ghg_distribution_seasons, plot_benefit_vs_degradation, plot_box_by_tariff,
+                     process_and_plot_utility_data, all_rates)
 
 warnings.filterwarnings("ignore", category=pd.errors.PerformanceWarning)
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -50,657 +50,244 @@ flatten_veh_data_parking = pd.DataFrame(flattened_data_parking)
 
 # %% reading json file
 
-# Normal Behavior
-directory_N_ng_EV_rate_H = "/Users/haniftayarani/V2G_Project/Results/Normal_Result_no_ghg/EV_Rate_Result/Home"
-total_costs_N_ng_EV_rate_H, costs_N_ng_EV_rate_H = xlsx_read(directory_N_ng_EV_rate_H)
-total_costs_N_ng_EV_rate_H["Plugged-in Sessions"] = "Actual"
-total_costs_N_ng_EV_rate_H["V2G_Location"] = "Home"
-costs_N_ng_EV_rate_H["Plugged-in Sessions"] = "Actual"
-costs_N_ng_EV_rate_H["V2G_Location"] = "Home"
-total_costs_N_ng_EV_rate_H["GHG Cost"] = 0
-costs_N_ng_EV_rate_H["GHG Cost"] = 0
 
-directory_N_ng_EV_rate_HW = "/Users/haniftayarani/V2G_Project/Results/Normal_Result_no_ghg/EV_Rate_Result/Home_Work"
-total_costs_N_ng_EV_rate_HW, costs_N_ng_EV_rate_HW = xlsx_read(directory_N_ng_EV_rate_HW)
-total_costs_N_ng_EV_rate_HW["Plugged-in Sessions"] = "Actual"
-total_costs_N_ng_EV_rate_HW["V2G_Location"] = "Home_Work"
-costs_N_ng_EV_rate_HW["Plugged-in Sessions"] = "Actual"
-costs_N_ng_EV_rate_HW["V2G_Location"] = "Home_Work"
-total_costs_N_ng_EV_rate_HW["GHG Cost"] = 0
-costs_N_ng_EV_rate_HW["GHG Cost"] = 0
-
-directory_N_ng_RT_rate_H = "/Users/haniftayarani/V2G_Project/Results/Normal_Result_no_ghg/RT_Result/Home"
-total_costs_N_ng_RT_rate_H, costs_N_ng_RT_rate_H = xlsx_read(directory_N_ng_RT_rate_H)
-total_costs_N_ng_RT_rate_H["Plugged-in Sessions"] = "Actual"
-total_costs_N_ng_RT_rate_H["V2G_Location"] = "Home"
-costs_N_ng_RT_rate_H["Plugged-in Sessions"] = "Actual"
-costs_N_ng_RT_rate_H["V2G_Location"] = "Home"
-total_costs_N_ng_RT_rate_H["GHG Cost"] = 0
-costs_N_ng_RT_rate_H["GHG Cost"] = 0
-
-directory_N_ng_RT_rate_HW = "/Users/haniftayarani/V2G_Project/Results/Normal_Result_no_ghg/RT_Result/Home_Work"
-total_costs_N_ng_RT_rate_HW, costs_N_ng_RT_rate_HW = xlsx_read(directory_N_ng_RT_rate_HW)
-total_costs_N_ng_RT_rate_HW["Plugged-in Sessions"] = "Actual"
-total_costs_N_ng_RT_rate_HW["V2G_Location"] = "Home_Work"
-costs_N_ng_RT_rate_HW["Plugged-in Sessions"] = "Actual"
-costs_N_ng_RT_rate_HW["V2G_Location"] = "Home_Work"
-total_costs_N_ng_RT_rate_HW["GHG Cost"] = 0
-costs_N_ng_RT_rate_HW["GHG Cost"] = 0
-
-directory_N_ng_TOU_rate_H = "/Users/haniftayarani/V2G_Project/Results/Normal_Result_no_ghg/TOU_Result/Home"
-total_costs_N_ng_TOU_rate_H, costs_N_ng_TOU_rate_H = xlsx_read(directory_N_ng_TOU_rate_H)
-total_costs_N_ng_TOU_rate_H["Plugged-in Sessions"] = "Actual"
-total_costs_N_ng_TOU_rate_H["V2G_Location"] = "Home"
-costs_N_ng_TOU_rate_H["Plugged-in Sessions"] = "Actual"
-costs_N_ng_TOU_rate_H["V2G_Location"] = "Home"
-total_costs_N_ng_TOU_rate_H["GHG Cost"] = 0
-costs_N_ng_TOU_rate_H["GHG Cost"] = 0
-
-directory_N_ng_TOU_rate_HW = "/Users/haniftayarani/V2G_Project/Results/Normal_Result_no_ghg/TOU_Result/Home_Work"
-total_costs_N_ng_TOU_rate_HW, costs_N_ng_TOU_rate_HW = xlsx_read(directory_N_ng_TOU_rate_HW)
-total_costs_N_ng_TOU_rate_HW["Plugged-in Sessions"] = "Actual"
-total_costs_N_ng_TOU_rate_HW["V2G_Location"] = "Home_Work"
-costs_N_ng_TOU_rate_HW["Plugged-in Sessions"] = "Actual"
-costs_N_ng_TOU_rate_HW["V2G_Location"] = "Home_Work"
-total_costs_N_ng_TOU_rate_HW["GHG Cost"] = 0
-costs_N_ng_TOU_rate_HW["GHG Cost"] = 0
-
-# 50 gram
-directory_N_50g_EV_rate_H = "/Users/haniftayarani/V2G_Project/Results/Normal_Result_50_ghg/EV_Rate_Result/Home"
-total_costs_N_50g_EV_rate_H, costs_N_50g_EV_rate_H = xlsx_read(directory_N_50g_EV_rate_H)
-total_costs_N_50g_EV_rate_H["Plugged-in Sessions"] = "Actual"
-total_costs_N_50g_EV_rate_H["V2G_Location"] = "Home"
-costs_N_50g_EV_rate_H["Plugged-in Sessions"] = "Actual"
-costs_N_50g_EV_rate_H["V2G_Location"] = "Home"
-
-
-directory_N_50g_EV_rate_HW = "/Users/haniftayarani/V2G_Project/Results/Normal_Result_50_ghg/EV_Rate_Result/Home_Work"
-total_costs_N_50g_EV_rate_HW, costs_N_50g_EV_rate_HW = xlsx_read(directory_N_50g_EV_rate_HW)
-total_costs_N_50g_EV_rate_HW["Plugged-in Sessions"] = "Actual"
-total_costs_N_50g_EV_rate_HW["V2G_Location"] = "Home_Work"
-costs_N_50g_EV_rate_HW["Plugged-in Sessions"] = "Actual"
-costs_N_50g_EV_rate_HW["V2G_Location"] = "Home_Work"
-
-
-directory_N_50g_RT_rate_H = "/Users/haniftayarani/V2G_Project/Results/Normal_Result_50_ghg/RT_Result/Home"
-total_costs_N_50g_RT_rate_H, costs_N_50g_RT_rate_H = xlsx_read(directory_N_50g_RT_rate_H)
-total_costs_N_50g_RT_rate_H["Plugged-in Sessions"] = "Actual"
-total_costs_N_50g_RT_rate_H["V2G_Location"] = "Home"
-costs_N_50g_RT_rate_H["Plugged-in Sessions"] = "Actual"
-costs_N_50g_RT_rate_H["V2G_Location"] = "Home"
-
-directory_N_50g_RT_rate_HW = "/Users/haniftayarani/V2G_Project/Results/Normal_Result_50_ghg/RT_Result/Home_Work"
-total_costs_N_50g_RT_rate_HW, costs_N_50g_RT_rate_HW = xlsx_read(directory_N_50g_RT_rate_HW)
-total_costs_N_50g_RT_rate_HW["Plugged-in Sessions"] = "Actual"
-total_costs_N_50g_RT_rate_HW["V2G_Location"] = "Home_Work"
-costs_N_50g_RT_rate_HW["Plugged-in Sessions"] = "Actual"
-costs_N_50g_RT_rate_HW["V2G_Location"] = "Home_Work"
-
-directory_N_50g_TOU_rate_H = "/Users/haniftayarani/V2G_Project/Results/Normal_Result_50_ghg/TOU_Result/Home"
-total_costs_N_50g_TOU_rate_H, costs_N_50g_TOU_rate_H = xlsx_read(directory_N_50g_TOU_rate_H)
-total_costs_N_50g_TOU_rate_H["Plugged-in Sessions"] = "Actual"
-total_costs_N_50g_TOU_rate_H["V2G_Location"] = "Home"
-costs_N_50g_TOU_rate_H["Plugged-in Sessions"] = "Actual"
-costs_N_50g_TOU_rate_H["V2G_Location"] = "Home"
-
-
-directory_N_50g_TOU_rate_HW = "/Users/haniftayarani/V2G_Project/Results/Normal_Result_50_ghg/TOU_Result/Home_Work"
-total_costs_N_50g_TOU_rate_HW, costs_N_50g_TOU_rate_HW = xlsx_read(directory_N_50g_TOU_rate_HW)
-total_costs_N_50g_TOU_rate_HW["Plugged-in Sessions"] = "Actual"
-total_costs_N_50g_TOU_rate_HW["V2G_Location"] = "Home_Work"
-costs_N_50g_TOU_rate_HW["Plugged-in Sessions"] = "Actual"
-costs_N_50g_TOU_rate_HW["V2G_Location"] = "Home_Work"
-
-# 191 gram
-
-directory_N_191g_EV_rate_H = "/Users/haniftayarani/V2G_Project/Results/Normal_Result_191_ghg/EV_Rate_Result/Home"
-total_costs_N_191g_EV_rate_H, costs_N_191g_EV_rate_H = xlsx_read(directory_N_191g_EV_rate_H)
-total_costs_N_191g_EV_rate_H["Plugged-in Sessions"] = "Actual"
-total_costs_N_191g_EV_rate_H["V2G_Location"] = "Home"
-costs_N_191g_EV_rate_H["Plugged-in Sessions"] = "Actual"
-costs_N_191g_EV_rate_H["V2G_Location"] = "Home"
-
-directory_N_191g_EV_rate_HW = "/Users/haniftayarani/V2G_Project/Results/Normal_Result_191_ghg/EV_Rate_Result/Home_Work"
-total_costs_N_191g_EV_rate_HW, costs_N_191g_EV_rate_HW = xlsx_read(directory_N_191g_EV_rate_HW)
-total_costs_N_191g_EV_rate_HW["Plugged-in Sessions"] = "Actual"
-total_costs_N_191g_EV_rate_HW["V2G_Location"] = "Home_Work"
-costs_N_191g_EV_rate_HW["Plugged-in Sessions"] = "Actual"
-costs_N_191g_EV_rate_HW["V2G_Location"] = "Home_Work"
-
-directory_N_191g_RT_rate_H = "/Users/haniftayarani/V2G_Project/Results/Normal_Result_191_ghg/RT_Result/Home"
-total_costs_N_191g_RT_rate_H, costs_N_191g_RT_rate_H = xlsx_read(directory_N_191g_RT_rate_H)
-total_costs_N_191g_RT_rate_H["Plugged-in Sessions"] = "Actual"
-total_costs_N_191g_RT_rate_H["V2G_Location"] = "Home"
-costs_N_191g_RT_rate_H["Plugged-in Sessions"] = "Actual"
-costs_N_191g_RT_rate_H["V2G_Location"] = "Home"
-
-directory_N_191g_RT_rate_HW = "/Users/haniftayarani/V2G_Project/Results/Normal_Result_191_ghg/RT_Result/Home_Work"
-total_costs_N_191g_RT_rate_HW, costs_N_191g_RT_rate_HW = xlsx_read(directory_N_191g_RT_rate_HW)
-total_costs_N_191g_RT_rate_HW["Plugged-in Sessions"] = "Actual"
-total_costs_N_191g_RT_rate_HW["V2G_Location"] = "Home_Work"
-costs_N_191g_RT_rate_HW["Plugged-in Sessions"] = "Actual"
-costs_N_191g_RT_rate_HW["V2G_Location"] = "Home_Work"
-
-directory_N_191g_TOU_rate_H = "/Users/haniftayarani/V2G_Project/Results/Normal_Result_191_ghg/TOU_Result/Home"
-total_costs_N_191g_TOU_rate_H, costs_N_191g_TOU_rate_H = xlsx_read(directory_N_191g_TOU_rate_H)
-total_costs_N_191g_TOU_rate_H["Plugged-in Sessions"] = "Actual"
-total_costs_N_191g_TOU_rate_H["V2G_Location"] = "Home"
-costs_N_191g_TOU_rate_H["Plugged-in Sessions"] = "Actual"
-costs_N_191g_TOU_rate_H["V2G_Location"] = "Home"
-
-directory_N_191g_TOU_rate_HW = "/Users/haniftayarani/V2G_Project/Results/Normal_Result_191_ghg/TOU_Result/Home_Work"
-total_costs_N_191g_TOU_rate_HW, costs_N_191g_TOU_rate_HW = xlsx_read(directory_N_191g_TOU_rate_HW)
-total_costs_N_191g_TOU_rate_HW["Plugged-in Sessions"] = "Actual"
-total_costs_N_191g_TOU_rate_HW["V2G_Location"] = "Home_Work"
-costs_N_191g_TOU_rate_HW["Plugged-in Sessions"] = "Actual"
-costs_N_191g_TOU_rate_HW["V2G_Location"] = "Home_Work"
-
-
-####
-
-# Potential  Behavior
-directory_P_ng_EV_rate_H = "/Users/haniftayarani/V2G_Project/Results/Parking_Result_no_ghg/EV_Rate_Result/Home"
-total_costs_P_ng_EV_rate_H, costs_P_ng_EV_rate_H = xlsx_read(directory_P_ng_EV_rate_H)
-total_costs_P_ng_EV_rate_H["Plugged-in Sessions"] = "Potential"
-total_costs_P_ng_EV_rate_H["V2G_Location"] = "Home"
-total_costs_P_ng_EV_rate_H["GHG Cost"] = 0
-costs_P_ng_EV_rate_H["Plugged-in Sessions"] = "Potential"
-costs_P_ng_EV_rate_H["V2G_Location"] = "Home"
-costs_P_ng_EV_rate_H["GHG Cost"] = 0
-
-
-directory_P_ng_EV_rate_HW = "/Users/haniftayarani/V2G_Project/Results/Parking_Result_no_ghg/EV_Rate_Result/Home_Work"
-total_costs_P_ng_EV_rate_HW, costs_P_ng_EV_rate_HW = xlsx_read(directory_P_ng_EV_rate_HW)
-total_costs_P_ng_EV_rate_HW["Plugged-in Sessions"] = "Potential"
-total_costs_P_ng_EV_rate_HW["V2G_Location"] = "Home_Work"
-total_costs_P_ng_EV_rate_HW["GHG Cost"] = 0
-costs_P_ng_EV_rate_HW["Plugged-in Sessions"] = "Potential"
-costs_P_ng_EV_rate_HW["V2G_Location"] = "Home_Work"
-costs_P_ng_EV_rate_HW["GHG Cost"] = 0
-
-
-directory_P_ng_RT_rate_H = "/Users/haniftayarani/V2G_Project/Results/Parking_Result_no_ghg/RT_Result/Home"
-total_costs_P_ng_RT_rate_H, costs_P_ng_RT_rate_H = xlsx_read(directory_P_ng_RT_rate_H)
-total_costs_P_ng_RT_rate_H["Plugged-in Sessions"] = "Potential"
-total_costs_P_ng_RT_rate_H["V2G_Location"] = "Home"
-total_costs_P_ng_RT_rate_H["GHG Cost"] = 0
-costs_P_ng_RT_rate_H["Plugged-in Sessions"] = "Potential"
-costs_P_ng_RT_rate_H["V2G_Location"] = "Home"
-costs_P_ng_RT_rate_H["GHG Cost"] = 0
-
-
-directory_P_ng_RT_rate_HW = "/Users/haniftayarani/V2G_Project/Results/Parking_Result_no_ghg/RT_Result/Home_Work"
-total_costs_P_ng_RT_rate_HW, costs_P_ng_RT_rate_HW = xlsx_read(directory_P_ng_RT_rate_HW)
-total_costs_P_ng_RT_rate_HW["Plugged-in Sessions"] = "Potential"
-total_costs_P_ng_RT_rate_HW["V2G_Location"] = "Home_Work"
-total_costs_P_ng_RT_rate_HW["GHG Cost"] = 0
-costs_P_ng_RT_rate_HW["Plugged-in Sessions"] = "Potential"
-costs_P_ng_RT_rate_HW["V2G_Location"] = "Home_Work"
-costs_P_ng_RT_rate_HW["GHG Cost"] = 0
-
-
-directory_P_ng_TOU_rate_H = "/Users/haniftayarani/V2G_Project/Results/Parking_Result_no_ghg/TOU_Result/Home"
-
-total_costs_P_ng_TOU_rate_H, costs_P_ng_TOU_rate_H = xlsx_read(directory_P_ng_TOU_rate_H)
-total_costs_P_ng_TOU_rate_H["Plugged-in Sessions"] = "Potential"
-total_costs_P_ng_TOU_rate_H["V2G_Location"] = "Home"
-total_costs_P_ng_TOU_rate_H["GHG Cost"] = 0
-costs_P_ng_TOU_rate_H["Plugged-in Sessions"] = "Potential"
-costs_P_ng_TOU_rate_H["V2G_Location"] = "Home"
-costs_P_ng_TOU_rate_H["GHG Cost"] = 0
-
-directory_P_ng_TOU_rate_HW = "/Users/haniftayarani/V2G_Project/Results/Parking_Result_no_ghg/TOU_Result/Home_Work"
-total_costs_P_ng_TOU_rate_HW, costs_P_ng_TOU_rate_HW = xlsx_read(directory_P_ng_TOU_rate_HW)
-total_costs_P_ng_TOU_rate_HW["Plugged-in Sessions"] = "Potential"
-total_costs_P_ng_TOU_rate_HW["V2G_Location"] = "Home_Work"
-total_costs_P_ng_TOU_rate_HW["GHG Cost"] = 0
-costs_P_ng_TOU_rate_HW["Plugged-in Sessions"] = "Potential"
-costs_P_ng_TOU_rate_HW["V2G_Location"] = "Home_Work"
-costs_P_ng_TOU_rate_HW["GHG Cost"] = 0
-
-# 50 gram
-directory_P_50g_EV_rate_H = "/Users/haniftayarani/V2G_Project/Results/Parking_Result_50_ghg/EV_Rate_Result/Home"
-total_costs_P_50g_EV_rate_H, costs_P_50g_EV_rate_H = xlsx_read(directory_P_50g_EV_rate_H)
-total_costs_P_50g_EV_rate_H["Plugged-in Sessions"] = "Potential"
-total_costs_P_50g_EV_rate_H["V2G_Location"] = "Home"
-costs_P_50g_EV_rate_H["Plugged-in Sessions"] = "Potential"
-costs_P_50g_EV_rate_H["V2G_Location"] = "Home"
-
-directory_P_50g_EV_rate_HW = "/Users/haniftayarani/V2G_Project/Results/Parking_Result_50_ghg/EV_Rate_Result/Home_Work"
-total_costs_P_50g_EV_rate_HW, costs_P_50g_EV_rate_HW = xlsx_read(directory_P_50g_EV_rate_HW)
-total_costs_P_50g_EV_rate_HW["Plugged-in Sessions"] = "Potential"
-total_costs_P_50g_EV_rate_HW["V2G_Location"] = "Home_Work"
-costs_P_50g_EV_rate_HW["Plugged-in Sessions"] = "Potential"
-costs_P_50g_EV_rate_HW["V2G_Location"] = "Home_Work"
-
-directory_P_50g_RT_rate_H = "/Users/haniftayarani/V2G_Project/Results/Parking_Result_50_ghg/RT_Result/Home"
-total_costs_P_50g_RT_rate_H, costs_P_50g_RT_rate_H = xlsx_read(directory_P_50g_RT_rate_H)
-total_costs_P_50g_RT_rate_H["Plugged-in Sessions"] = "Potential"
-total_costs_P_50g_RT_rate_H["V2G_Location"] = "Home"
-costs_P_50g_RT_rate_H["Plugged-in Sessions"] = "Potential"
-costs_P_50g_RT_rate_H["V2G_Location"] = "Home"
-
-directory_P_50g_RT_rate_HW = "/Users/haniftayarani/V2G_Project/Results/Parking_Result_50_ghg/RT_Result/Home_Work"
-total_costs_P_50g_RT_rate_HW, costs_P_50g_RT_rate_HW = xlsx_read(directory_P_50g_RT_rate_HW)
-total_costs_P_50g_RT_rate_HW["Plugged-in Sessions"] = "Potential"
-total_costs_P_50g_RT_rate_HW["V2G_Location"] = "Home_Work"
-costs_P_50g_RT_rate_HW["Plugged-in Sessions"] = "Potential"
-costs_P_50g_RT_rate_HW["V2G_Location"] = "Home_Work"
-
-directory_P_50g_TOU_rate_H = "/Users/haniftayarani/V2G_Project/Results/Parking_Result_50_ghg/TOU_Result/Home"
-total_costs_P_50g_TOU_rate_H, costs_P_50g_TOU_rate_H = xlsx_read(directory_P_50g_TOU_rate_H)
-total_costs_P_50g_TOU_rate_H["Plugged-in Sessions"] = "Potential"
-total_costs_P_50g_TOU_rate_H["V2G_Location"] = "Home"
-costs_P_50g_TOU_rate_H["Plugged-in Sessions"] = "Potential"
-costs_P_50g_TOU_rate_H["V2G_Location"] = "Home"
-
-directory_P_50g_TOU_rate_HW = "/Users/haniftayarani/V2G_Project/Results/Parking_Result_50_ghg/TOU_Result/Home_Work"
-total_costs_P_50g_TOU_rate_HW, costs_P_50g_TOU_rate_HW = xlsx_read(directory_P_50g_TOU_rate_HW)
-total_costs_P_50g_TOU_rate_HW["Plugged-in Sessions"] = "Potential"
-total_costs_P_50g_TOU_rate_HW["V2G_Location"] = "Home_Work"
-costs_P_50g_TOU_rate_HW["Plugged-in Sessions"] = "Potential"
-costs_P_50g_TOU_rate_HW["V2G_Location"] = "Home_Work"
-
-# 191 gram
-
-directory_P_191g_EV_rate_H = "/Users/haniftayarani/V2G_Project/Results/Parking_Result_191_ghg/EV_Rate_Result/Home"
-total_costs_P_191g_EV_rate_H, costs_P_191g_EV_rate_H = xlsx_read(directory_P_191g_EV_rate_H)
-total_costs_P_191g_EV_rate_H["Plugged-in Sessions"] = "Potential"
-total_costs_P_191g_EV_rate_H["V2G_Location"] = "Home"
-costs_P_191g_EV_rate_H["Plugged-in Sessions"] = "Potential"
-costs_P_191g_EV_rate_H["V2G_Location"] = "Home"
-
-
-directory_P_191g_EV_rate_HW = "/Users/haniftayarani/V2G_Project/Results/Parking_Result_191_ghg/EV_Rate_Result/Home_Work"
-total_costs_P_191g_EV_rate_HW, costs_P_191g_EV_rate_HW = xlsx_read(directory_P_191g_EV_rate_HW)
-total_costs_P_191g_EV_rate_HW["Plugged-in Sessions"] = "Potential"
-total_costs_P_191g_EV_rate_HW["V2G_Location"] = "Home_Work"
-costs_P_191g_EV_rate_HW["Plugged-in Sessions"] = "Potential"
-costs_P_191g_EV_rate_HW["V2G_Location"] = "Home_Work"
-
-directory_P_191g_RT_rate_H = "/Users/haniftayarani/V2G_Project/Results/Parking_Result_191_ghg/RT_Result/Home"
-total_costs_P_191g_RT_rate_H, costs_P_191g_RT_rate_H = xlsx_read(directory_P_191g_RT_rate_H)
-total_costs_P_191g_RT_rate_H["Plugged-in Sessions"] = "Potential"
-total_costs_P_191g_RT_rate_H["V2G_Location"] = "Home"
-costs_P_191g_RT_rate_H["Plugged-in Sessions"] = "Potential"
-costs_P_191g_RT_rate_H["V2G_Location"] = "Home"
-
-directory_P_191g_RT_rate_HW = "/Users/haniftayarani/V2G_Project/Results/Parking_Result_191_ghg/RT_Result/Home_Work"
-total_costs_P_191g_RT_rate_HW, costs_P_191g_RT_rate_HW = xlsx_read(directory_P_191g_RT_rate_HW)
-total_costs_P_191g_RT_rate_HW["Plugged-in Sessions"] = "Potential"
-total_costs_P_191g_RT_rate_HW["V2G_Location"] = "Home_Work"
-costs_P_191g_RT_rate_HW["Plugged-in Sessions"] = "Potential"
-costs_P_191g_RT_rate_HW["V2G_Location"] = "Home_Work"
-
-
-directory_P_191g_TOU_rate_H = "/Users/haniftayarani/V2G_Project/Results/Parking_Result_191_ghg/TOU_Result/Home"
-total_costs_P_191g_TOU_rate_H, costs_P_191g_TOU_rate_H = xlsx_read(directory_P_191g_TOU_rate_H)
-total_costs_P_191g_TOU_rate_H["Plugged-in Sessions"] = "Potential"
-total_costs_P_191g_TOU_rate_H["V2G_Location"] = "Home"
-costs_P_191g_TOU_rate_H["Plugged-in Sessions"] = "Potential"
-costs_P_191g_TOU_rate_H["V2G_Location"] = "Home"
-
-
-directory_P_191g_TOU_rate_HW = "/Users/haniftayarani/V2G_Project/Results/Parking_Result_191_ghg/TOU_Result/Home_Work"
-total_costs_P_191g_TOU_rate_HW, costs_P_191g_TOU_rate_HW = xlsx_read(directory_P_191g_TOU_rate_HW)
-total_costs_P_191g_TOU_rate_HW["Plugged-in Sessions"] = "Potential"
-total_costs_P_191g_TOU_rate_HW["V2G_Location"] = "Home_Work"
-costs_P_191g_TOU_rate_HW["Plugged-in Sessions"] = "Potential"
-costs_P_191g_TOU_rate_HW["V2G_Location"] = "Home_Work"
-
-
-# Actual
-# Define the file paths
-rt_cost_file = '/Users/haniftayarani/V2G_Project/Results/Actual/Actual_RT_cost.xlsx'
-tou_cost_file = '/Users/haniftayarani/V2G_Project/Results/Actual/Actual_TOU_cost.xlsx'
-ev_rate_cost_file = '/Users/haniftayarani/V2G_Project/Results/Actual/Actual_EV_rate_cost.xlsx'
-
-# Read the Excel files into DataFrames
-costs_A_RT_rate = pd.read_excel(rt_cost_file, sheet_name='Individual Costs')
-costs_A_TOU_rate = pd.read_excel(tou_cost_file, sheet_name='Individual Costs')
-costs_A_EV_rate = pd.read_excel(ev_rate_cost_file, sheet_name='Individual Costs')
-
-costs_A_RT_rate = costs_A_RT_rate.drop(costs_A_RT_rate.columns[0], axis=1)
-costs_A_TOU_rate = costs_A_TOU_rate.drop(costs_A_TOU_rate.columns[0], axis=1)
-costs_A_EV_rate = costs_A_EV_rate.drop(costs_A_EV_rate.columns[0], axis=1)
-
-costs_A_RT_rate["Charging Type"] = "Actual Behavior - RT"
-costs_A_TOU_rate["Charging Type"] = "Actual - TOU"
-costs_A_EV_rate["Charging Type"] = "Actual - EV Rate"
-
-costs_A_RT_rate["GHG Cost"] = 0.05
-costs_A_TOU_rate["GHG Cost"] = 0.05
-costs_A_EV_rate["GHG Cost"] = 0.05
-
-costs_A_RT_rate["V2G_Location"] = "None"
-costs_A_TOU_rate["V2G_Location"] = "None"
-costs_A_EV_rate["V2G_Location"] = "None"
-
-costs_A_RT_rate["Plugged-in Sessions"] = "Actual"
-costs_A_TOU_rate["Plugged-in Sessions"] = "Actual"
-costs_A_EV_rate["Plugged-in Sessions"] = "Actual"
-
-costs_A_RT_rate_191 = costs_A_RT_rate.copy()
-costs_A_TOU_rate_191 = costs_A_TOU_rate.copy()
-costs_A_EV_rate_191 = costs_A_EV_rate.copy()
-
-costs_A_RT_rate_191["GHG Cost"] = 0.191
-costs_A_TOU_rate_191["GHG Cost"] = 0.191
-costs_A_EV_rate_191["GHG Cost"] = 0.191
-
-costs_A_RT_rate_191["GHG_Cost"] = (costs_A_RT_rate_191["GHG_Cost"]/0.05) * 0.191
-costs_A_TOU_rate_191["GHG_Cost"] = (costs_A_TOU_rate_191["GHG_Cost"]/0.05) * 0.191
-costs_A_EV_rate_191["GHG_Cost"] = (costs_A_EV_rate_191["GHG_Cost"]/0.05) * 0.191
-
-# Create total costs DataFrames with index
-total_costs_A_RT_rate = pd.DataFrame({
-    "Electricity_Cost": [costs_A_RT_rate["Electricity_Cost"].sum()],
-    "Degradation_Cost": [costs_A_RT_rate["Degradation_Cost"].sum()],
-    "GHG_Cost": [costs_A_RT_rate["GHG_Cost"].sum()],
-    "X_CHR": [costs_A_RT_rate["Total Charge"].sum()],
-    "Charging Type": ["Actual Behavior"],
-    "Charging Speed": [0],
-    "GHG Cost": [0]
-})
-
-total_costs_A_TOU_rate = pd.DataFrame({
-    "Electricity_Cost": [costs_A_TOU_rate["Electricity_Cost"].sum()],
-    "Degradation_Cost": [costs_A_TOU_rate["Degradation_Cost"].sum()],
-    "GHG_Cost": [costs_A_TOU_rate["GHG_Cost"].sum()],
-    "X_CHR": [costs_A_TOU_rate["Total Charge"].sum()],
-    "Charging Type": ["Actual Behavior - TOU Rate"],
-    "Charging Speed": [0],
-    "GHG Cost": [0]
-})
-
-total_costs_A_EV_rate = pd.DataFrame({
-    "Electricity_Cost": [costs_A_EV_rate["Electricity_Cost"].sum()],
-    "Degradation_Cost": [costs_A_EV_rate["Degradation_Cost"].sum()],
-    "GHG_Cost": [costs_A_EV_rate["GHG_Cost"].sum()],
-    "X_CHR": [costs_A_EV_rate["Total Charge"].sum()],
-    "Charging Type": ["Actual Behavior - EV Rate"],
-    "Charging Speed": [0],
-    "GHG Cost": [0]
-})
-
-
-rt_cost_file_hourly = '/Users/haniftayarani/V2G_Project/Results/Actual/Actual_RT_cost_hourly.xlsx'
-tou_cost_file_hourly = '/Users/haniftayarani/V2G_Project/Results/Actual/Actual_TOU_cost_hourly.xlsx'
-ev_rate_cost_file_hourly = '/Users/haniftayarani/V2G_Project/Results/Actual/Actual_EV_rate_cost_hourly.xlsx'
-
-costs_A_RT_rate_hourly = pd.read_excel(rt_cost_file_hourly, sheet_name='Individual Costs')
-costs_A_TOU_rate_hourly = pd.read_excel(tou_cost_file_hourly, sheet_name='Individual Costs')
-costs_A_EV_rate_hourly = pd.read_excel(ev_rate_cost_file_hourly, sheet_name='Individual Costs')
-
-costs_A_RT_rate_hourly = costs_A_RT_rate_hourly.drop(costs_A_RT_rate_hourly.columns[0], axis=1)
-costs_A_TOU_rate_hourly = costs_A_TOU_rate_hourly.drop(costs_A_TOU_rate_hourly.columns[0], axis=1)
-costs_A_EV_rate_hourly = costs_A_EV_rate_hourly.drop(costs_A_EV_rate_hourly.columns[0], axis=1)
-
-
-rt_cost_file_hourly_in = '/Users/haniftayarani/V2G_Project/Results/Actual/Actual_RT_cost_hourly_in.xlsx'
-tou_cost_file_hourly_in = '/Users/haniftayarani/V2G_Project/Results/Actual/Actual_TOU_cost_hourly_in.xlsx'
-ev_rate_cost_file_hourly_in = '/Users/haniftayarani/V2G_Project/Results/Actual/Actual_EV_rate_cost_hourly_in.xlsx'
-
-costs_A_RT_rate_hourly_in = pd.read_excel(rt_cost_file_hourly_in, sheet_name='Individual Costs')
-costs_A_TOU_rate_hourly_in = pd.read_excel(tou_cost_file_hourly_in, sheet_name='Individual Costs')
-costs_A_EV_rate_hourly_in = pd.read_excel(ev_rate_cost_file_hourly_in, sheet_name='Individual Costs')
-
-costs_A_RT_rate_hourly_in = costs_A_RT_rate_hourly_in.drop(costs_A_RT_rate_hourly_in.columns[0], axis=1)
-costs_A_TOU_rate_hourly_in = costs_A_TOU_rate_hourly_in.drop(costs_A_TOU_rate_hourly_in.columns[0], axis=1)
-costs_A_EV_rate_hourly_in = costs_A_EV_rate_hourly_in.drop(costs_A_EV_rate_hourly_in.columns[0], axis=1)
-# %%
-result_N_ng_EV_rate_H, hourly_data_N_ng_EV_rate_H = json_file_read(directory_N_ng_EV_rate_H, flatten_veh_data)
-# result_N_ng_EV_rate_HW, hourly_data_N_ng_EV_rate_HW = json_file_read(directory_N_ng_EV_rate_HW, flatten_veh_data)
-result_N_ng_RT_rate_H, hourly_data_N_ng_RT_rate_H = json_file_read(directory_N_ng_RT_rate_H, flatten_veh_data)
-# result_N_ng_RT_rate_HW, hourly_data_N_ng_RT_rate_HW = json_file_read(directory_N_ng_RT_rate_HW, flatten_veh_data)
-result_N_ng_TOU_rate_H, hourly_data_N_ng_TOU_rate_H = json_file_read(directory_N_ng_TOU_rate_H, flatten_veh_data)
-# result_N_ng_TOU_rate_HW, hourly_data_N_ng_TOU_rate_HW = json_file_read(directory_N_ng_TOU_rate_HW, flatten_veh_data)
-result_N_50g_EV_rate_H, hourly_data_N_50g_EV_rate_H = json_file_read(directory_N_50g_EV_rate_H, flatten_veh_data)
-# result_N_50g_EV_rate_HW, hourly_data_N_50g_EV_rate_HW = json_file_read(directory_N_50g_EV_rate_HW, flatten_veh_data)
-result_N_50g_RT_rate_H, hourly_data_N_50g_RT_rate_H = json_file_read(directory_N_50g_RT_rate_H, flatten_veh_data)
-# result_N_50g_RT_rate_HW, hourly_data_N_50g_RT_rate_HW = json_file_read(directory_N_50g_RT_rate_HW, flatten_veh_data)
-result_N_50g_TOU_rate_H, hourly_data_N_50g_TOU_rate_H = json_file_read(directory_N_50g_TOU_rate_H, flatten_veh_data)
-# result_N_50g_TOU_rate_HW, hourly_data_N_50g_TOU_rate_HW = json_file_read(directory_N_50g_TOU_rate_HW, flatten_veh_data)
-result_N_191g_EV_rate_H, hourly_data_N_191g_EV_rate_H = json_file_read(directory_N_191g_EV_rate_H, flatten_veh_data)
-# result_N_191g_EV_rate_HW, hourly_data_N_191g_EV_rate_HW = json_file_read(directory_N_191g_EV_rate_HW, flatten_veh_data)
-result_N_191g_RT_rate_H, hourly_data_N_191g_RT_rate_H = json_file_read(directory_N_191g_RT_rate_H, flatten_veh_data)
-# result_N_191g_RT_rate_HW, hourly_data_N_191g_RT_rate_HW = json_file_read(directory_N_191g_RT_rate_HW, flatten_veh_data)
-result_N_191g_TOU_rate_H, hourly_data_N_191g_TOU_rate_H = json_file_read(directory_N_191g_TOU_rate_H, flatten_veh_data)
-# result_N_191g_TOU_rate_HW, hourly_data_N_191g_TOU_rate_HW = json_file_read(directory_N_191g_TOU_rate_HW, flatten_veh_data)
-# %%
-result_P_ng_EV_rate_H, hourly_data_P_ng_EV_rate_H = json_file_read(directory_P_ng_EV_rate_H, flatten_veh_data_parking)
-# result_P_ng_EV_rate_HW, hourly_data_P_ng_EV_rate_HW = json_file_read(directory_P_ng_EV_rate_HW, flatten_veh_data_parking)
-result_P_ng_RT_rate_H, hourly_data_P_ng_RT_rate_H = json_file_read(directory_P_ng_RT_rate_H, flatten_veh_data_parking)
-# result_P_ng_RT_rate_HW, hourly_data_P_ng_RT_rate_HW = json_file_read(directory_P_ng_RT_rate_HW, flatten_veh_data_parking)
-result_P_ng_TOU_rate_H, hourly_data_P_ng_TOU_rate_H = json_file_read(directory_P_ng_TOU_rate_H, flatten_veh_data_parking)
-# result_P_ng_TOU_rate_HW, hourly_data_P_ng_TOU_rate_HW = json_file_read(directory_P_ng_TOU_rate_HW, flatten_veh_data_parking)
-result_P_50g_EV_rate_H, hourly_data_P_50g_EV_rate_H = json_file_read(directory_P_50g_EV_rate_H, flatten_veh_data_parking)
-# result_P_50g_EV_rate_HW, hourly_data_P_50g_EV_rate_HW = json_file_read(directory_P_50g_EV_rate_HW, flatten_veh_data_parking)
-result_P_50g_RT_rate_H, hourly_data_P_50g_RT_rate_H = json_file_read(directory_P_50g_RT_rate_H, flatten_veh_data_parking)
-# result_P_50g_RT_rate_HW, hourly_data_P_50g_RT_rate_HW = json_file_read(directory_P_50g_RT_rate_HW, flatten_veh_data_parking)
-result_P_50g_TOU_rate_H, hourly_data_P_50g_TOU_rate_H, = json_file_read(directory_P_50g_TOU_rate_H, flatten_veh_data_parking)
-# result_P_50g_TOU_rate_HW, hourly_data_P_50g_TOU_rate_HW = json_file_read(directory_P_50g_TOU_rate_HW, flatten_veh_data_parking)
-result_P_191g_EV_rate_H, hourly_data_P_191g_EV_rate_H = json_file_read(directory_P_191g_EV_rate_H, flatten_veh_data_parking)
-# result_P_191g_EV_rate_HW, hourly_data_P_191g_EV_rate_HW = json_file_read(directory_P_191g_EV_rate_HW, flatten_veh_data_parking)
-result_P_191g_RT_rate_H, hourly_data_P_191g_RT_rate_H = json_file_read(directory_P_191g_RT_rate_H, flatten_veh_data_parking)
-# result_P_191g_RT_rate_HW, hourly_data_P_191g_RT_rate_HW = json_file_read(directory_P_191g_RT_rate_HW, flatten_veh_data_parking)
-result_P_191g_TOU_rate_H, hourly_data_P_191g_TOU_rate_H = json_file_read(directory_P_191g_TOU_rate_H, flatten_veh_data_parking)
-# result_P_191g_TOU_rate_HW, hourly_data_P_191g_TOU_rate_HW = json_file_read(directory_P_191g_TOU_rate_HW, flatten_veh_data_parking)
+# Define inputs
+base_dir = "/Users/haniftayarani/V2G_Project/Results/Result"
+rate_types = ["EV_Rate", "TOU", "RT_Rate"]
+utilities = ["pge", "sce", "sdge", "smud"]
+locations = ["Home", "Home_Work"]  # Adjusted location format
+# Run the function
+total_optimal_combined, optimal_individual_aggregated = read_all_results(base_dir, rate_types, utilities, locations)
+# Define inputs
+base_dir1 = "/Users/haniftayarani/V2G_Project/Results/Actual"
+# Run the function
+actual_hourly, actual_individual_aggregated, total_actual_combined = read_combined_costs(base_dir1)
+# %% reading the hourly files from json file
+
+# base_dir = "/Users/haniftayarani/V2G_Project/Results/Result"
+# process_and_save_all(base_dir, flatten_veh_data, flatten_veh_data_parking)
 # %%
 
-all_hourly_charging_N_data = pd.concat([
-    add_tariff_name3(hourly_data_N_ng_EV_rate_H, 'EV Rate - Home', "Actual"),
-    # add_tariff_name3(hourly_data_N_ng_EV_rate_HW, 'EV Rate - Home&Work', "Actual"),
-
-    add_tariff_name3(hourly_data_N_ng_RT_rate_H, 'RT Rate - Home', "Actual"),
-    # add_tariff_name3(hourly_data_N_ng_RT_rate_HW, 'RT Rate - Home&Work', "Actual"),
-
-    add_tariff_name3(hourly_data_N_ng_TOU_rate_H, 'TOU Rate - Home', "Actual"),
-    # add_tariff_name3(hourly_data_N_ng_TOU_rate_HW, 'TOU Rate - Home&Work', "Actual"),
-
-    add_tariff_name2(hourly_data_N_50g_EV_rate_H, 'EV Rate - Home', "Actual"),
-    # add_tariff_name2(hourly_data_N_50g_EV_rate_HW, 'EV Rate - Home&Work', "Actual"),
-
-    add_tariff_name2(hourly_data_N_50g_RT_rate_H, 'RT Rate - Home', "Actual"),
-    # add_tariff_name2(hourly_data_N_50g_RT_rate_HW, 'RT Rate - Home&Work', "Actual"),
-
-    add_tariff_name2(hourly_data_N_50g_TOU_rate_H, 'TOU Rate - Home', "Actual"),
-    # add_tariff_name2(hourly_data_N_50g_TOU_rate_HW, 'TOU Rate - Home&Work', "Actual"),
-
-    add_tariff_name2(hourly_data_N_191g_EV_rate_H, 'EV Rate - Home', "Actual"),
-    # add_tariff_name2(hourly_data_N_191g_EV_rate_HW, 'EV Rate - Home&Work', "Actual"),
-
-    add_tariff_name2(hourly_data_N_191g_RT_rate_H, 'RT Rate - Home', "Actual"),
-    # add_tariff_name2(hourly_data_N_191g_RT_rate_HW, 'RT Rate - Home&Work', "Actual"),
-
-    add_tariff_name2(hourly_data_N_191g_TOU_rate_H, 'TOU Rate - Home', "Actual"),
-    # add_tariff_name2(hourly_data_N_191g_TOU_rate_HW, 'TOU Rate - Home&Work', "Actual")
-    ],ignore_index=True)
-# %%
-all_hourly_charging_P_data = pd.concat([
-    add_tariff_name3(hourly_data_P_ng_EV_rate_H, 'EV Rate - Home', "Potential"),
-    # add_tariff_name3(hourly_data_P_ng_EV_rate_HW, 'EV Rate - Home&Work', "Potential"),
-
-    add_tariff_name3(hourly_data_P_ng_RT_rate_H, 'RT Rate - Home', "Potential"),
-    # add_tariff_name3(hourly_data_P_ng_RT_rate_HW, 'RT Rate - Home&Work', "Potential"),
-
-    add_tariff_name3(hourly_data_P_ng_TOU_rate_H, 'TOU Rate - Home', "Potential"),
-    # add_tariff_name3(hourly_data_P_ng_TOU_rate_HW, 'TOU Rate - Home&Work', "Potential"),
-
-    add_tariff_name2(hourly_data_P_50g_EV_rate_H, 'EV Rate - Home', "Potential"),
-    # add_tariff_name2(hourly_data_P_50g_EV_rate_HW, 'EV Rate - Home&Work', "Potential"),
-
-    add_tariff_name2(hourly_data_P_50g_RT_rate_H, 'RT Rate - Home', "Potential"),
-    # add_tariff_name2(hourly_data_P_50g_RT_rate_HW, 'RT Rate - Home&Work', "Potential"),
-
-    add_tariff_name2(hourly_data_P_50g_TOU_rate_H, 'TOU Rate - Home', "Potential"),
-    # add_tariff_name2(hourly_data_P_50g_TOU_rate_HW, 'TOU Rate - Home&Work', "Potential"),
-
-    add_tariff_name2(hourly_data_P_191g_EV_rate_H, 'EV Rate - Home', "Potential"),
-    # add_tariff_name2(hourly_data_P_191g_EV_rate_HW, 'EV Rate - Home&Work', "Potential"),
-
-    add_tariff_name2(hourly_data_P_191g_RT_rate_H, 'RT Rate - Home', "Potential"),
-    # add_tariff_name2(hourly_data_P_191g_RT_rate_HW, 'RT Rate - Home&Work', "Potential"),
-
-    add_tariff_name2(hourly_data_P_191g_TOU_rate_H, 'TOU Rate - Home', "Potential"),
-    # add_tariff_name2(hourly_data_P_191g_TOU_rate_HW, 'TOU Rate - Home&Work', "Potential"),
-    ], ignore_index=True)
+combined_hourly_data_pge_normal = pd.read_pickle("/Users/haniftayarani/V2G_Project/Hourly_data/combined_hourly_data_normal_PGE.pkl")
+combined_hourly_data_pge_parking = pd.read_pickle("/Users/haniftayarani/V2G_Project/Hourly_data/combined_hourly_data_parking_PGE.pkl")
+combined_hourly_data_sce_normal = pd.read_pickle("/Users/haniftayarani/V2G_Project/Hourly_data/combined_hourly_data_normal_SCE.pkl")
+combined_hourly_data_sce_parking = pd.read_pickle("/Users/haniftayarani/V2G_Project/Hourly_data/combined_hourly_data_parking_SCE.pkl")
+combined_hourly_data_sdge_normal = pd.read_pickle("/Users/haniftayarani/V2G_Project/Hourly_data/combined_hourly_data_normal_SDGE.pkl")
+combined_hourly_data_sdge_parking = pd.read_pickle("/Users/haniftayarani/V2G_Project/Hourly_data/combined_hourly_data_parking_SDGE.pkl")
+combined_hourly_data_smud_normal = pd.read_pickle("/Users/haniftayarani/V2G_Project/Hourly_data/combined_hourly_data_normal_SMUD.pkl")
+combined_hourly_data_smud_parking = pd.read_pickle("/Users/haniftayarani/V2G_Project/Hourly_data/combined_hourly_data_parking_SMUD.pkl")
 
 
 # %%
-
-# Concatenate all DataFrames into one
-EV_rates_total = pd.concat([
-    total_costs_N_ng_EV_rate_H,    total_costs_N_ng_EV_rate_HW,
-    total_costs_P_ng_EV_rate_H,    total_costs_P_ng_EV_rate_HW,
-    total_costs_A_EV_rate
-], ignore_index=True)
-EV_rates_total["Charging Speed"] = EV_rates_total["Charging Speed"].astype(float)
-
-
-# Concatenate all DataFrames into one
-TOU_rates_total = pd.concat([
-    total_costs_N_ng_TOU_rate_H,    total_costs_N_ng_TOU_rate_HW,
-    total_costs_P_ng_TOU_rate_H,    total_costs_P_ng_TOU_rate_HW,
-    total_costs_A_TOU_rate,
-], ignore_index=True)
-TOU_rates_total["Charging Speed"] = TOU_rates_total["Charging Speed"].astype(float)
-
-
-# Concatenate all DataFrames into one
-RT_rates_total = pd.concat([
-    total_costs_N_ng_RT_rate_H,    total_costs_N_ng_RT_rate_HW,
-    total_costs_P_ng_RT_rate_H,    total_costs_P_ng_RT_rate_HW,
-    total_costs_A_TOU_rate,    total_costs_A_EV_rate],
-    ignore_index=True)
-RT_rates_total["Charging Speed"] = RT_rates_total["Charging Speed"].astype(float)
-
-
-# Concatenate all dataframes
-All_rates_total = pd.concat([
-    add_tariff_name(costs_N_50g_EV_rate_H, 'EV Rate'),
-    add_tariff_name(costs_N_50g_RT_rate_H, 'RT Rate'),
-    add_tariff_name(costs_N_50g_TOU_rate_H, 'TOU Rate'),
-    add_tariff_name(costs_P_50g_EV_rate_H, 'EV Rate'),
-    add_tariff_name(costs_P_50g_RT_rate_H, 'RT Rate'),
-    add_tariff_name(costs_P_50g_TOU_rate_H, 'TOU Rate'),
-    add_tariff_name(costs_N_191g_EV_rate_H, 'EV Rate'),
-    add_tariff_name(costs_N_191g_RT_rate_H, 'RT Rate'),
-    add_tariff_name(costs_N_191g_TOU_rate_H, 'TOU Rate'),
-    add_tariff_name(costs_P_191g_EV_rate_H, 'EV Rate'),
-    add_tariff_name(costs_P_191g_RT_rate_H, 'RT Rate'),
-    add_tariff_name(costs_P_191g_TOU_rate_H, 'TOU Rate'),
-    add_tariff_name(costs_A_TOU_rate, 'TOU Rate'),    add_tariff_name(costs_A_EV_rate, 'EV Rate'),
-    add_tariff_name(costs_A_TOU_rate_191, 'TOU Rate'),    add_tariff_name(costs_A_EV_rate_191, 'EV Rate')], ignore_index=True)
-
-
-All_rates_total_6 = All_rates_total.loc[(All_rates_total["Charging Speed"].isna()) | (All_rates_total["Charging Speed"] == 6.6)]
-All_rates_total_12 = All_rates_total.loc[(All_rates_total["Charging Speed"].isna()) | (All_rates_total["Charging Speed"] == 12)]
-All_rates_total_19 = All_rates_total.loc[(All_rates_total["Charging Speed"].isna()) | (All_rates_total["Charging Speed"] == 19)]
+All_rates_total, TOU_rates_total, EV_rates_total, RT_rates_total, RT_rates_total_TOU, RT_rates_total_EV, All_rates_total_6, All_rates_total_12, All_rates_total_19 = all_rates(total_optimal_combined, total_actual_combined)
 # %%
-
 # EV Rate Pricing Plot
 colors = {'Off-Peak': '#00a4de', 'Part-Peak': '#fdba0b', 'Peak': '#f2651c'}
 plot_price_chart_EVRATE(off_peak_price=31, part_peak_price=51, peak_price=62, bar_width=1, colors=colors, font_size=14)
 plot_price_chart_EVRATE(off_peak_price=31, part_peak_price=48, peak_price=49, bar_width=1, colors=colors, font_size=14)
-
-# %%
 # TOU Pricing Plot
 colors = {'Off-Peak': '#00a4de', 'Peak': '#f2651c'}
 plot_price_chart_TOU(off_peak_price=49, peak_price=59, bar_width=1, colors=colors, font_size=14)
 plot_price_chart_TOU(off_peak_price=45, peak_price=48, bar_width=1, colors=colors, font_size=14)
 # %%
-
-# Example usage
-plot_cost_comparison_EV(EV_rates_total, num_vehicles=50, title_size=14, axis_text_size=12, y_axis_title='Cost / Revenue ($)', barhight=-2500)
-plot_cost_comparison_TOU(TOU_rates_total, num_vehicles=50, title_size=14, axis_text_size=12, y_axis_title='Cost ($)', barhight=500)
-plot_cost_comparison_RT(RT_rates_total, num_vehicles=50, title_size=14, axis_text_size=12, y_axis_title='Cost / Revenue ($)', barhight=-7500)
-
-# %%
-voilin_input_data = violin_input(All_rates_total)
-voilin_input_data_smart = filter_rows_by_word(voilin_input_data, 'Scenario', ['Actual', 'Smart'])
-voilin_input_data_V2G = filter_rows_by_word(voilin_input_data, 'Scenario', ['Actual', 'V2G'])
-stacked_violin_plot(voilin_input_data_smart)
-stacked_violin_plot(voilin_input_data_V2G)
-# %%
 plot_ghg_distribution_seasons(GHG_dict, Power_dict)
-
-# %% Bttery health
-
-# all_hourly_charging_N_data_battery = all_hourly_charging_N_data[["Vehicle", "Electricity_Cost", "Degradation_Cost", "GHG_Cost", "X_CHR", "Charging Type", "Charging Speed", "GHG Cost", 'Tariff', 'Charging_Behavior']]
-# all_hourly_charging_N_data_battery.to_pickle('all_hourly_charging_N_data_battery.pkl')
-#
-# all_hourly_charging_P_data_battery = all_hourly_charging_P_data[["Vehicle", "Electricity_Cost", "Degradation_Cost","GHG_Cost", "X_CHR", "Charging Type", "Charging Speed", "GHG Cost", 'Tariff', 'Charging_Behavior']]
-# all_hourly_charging_P_data_battery.to_pickle('all_hourly_charging_P_data_battery.pkl')
-
 # %%
-CDF_N = all_hourly_charging_N_data[(all_hourly_charging_N_data["X_CHR"] != 0) &
-                                   (all_hourly_charging_N_data["GHG Cost"] == 0.191) &
-                                   (all_hourly_charging_N_data["Tariff"] != "TOU Rate - Home")]
-
-CDF_N["Electricity_Paid"] = CDF_N["Electricity_Cost"] / abs(CDF_N["X_CHR"])
-CDF_N = pd.merge(CDF_N, df_GHG, on="Hour", how="left")
-CDF_N['GHG_value'] = CDF_N.apply(lambda row: row['GHG_value'] * -1 if row['X_CHR'] < 0 else row['GHG_value'], axis=1)
+CDF_N_grouped_g_pge, CDF_N_grouped_c_pge, CDF_P_grouped_g_pge, CDF_P_grouped_c_pge = process_and_plot_utility_data("PGE", actual_hourly, GHG_data, text_size=14)
+CDF_N_grouped_g_sce, CDF_N_grouped_c_sce, CDF_P_grouped_g_sce, CDF_P_grouped_c_sce = process_and_plot_utility_data("SCE", actual_hourly, GHG_data, text_size=14)
+CDF_N_grouped_g_sdge, CDF_N_grouped_c_sdge, CDF_P_grouped_g_sdge, CDF_P_grouped_c_sdge = process_and_plot_utility_data("SDGE", actual_hourly, GHG_data, text_size=14)
+CDF_N_grouped_g_smud, CDF_N_grouped_c_smud, CDF_P_grouped_g_smud, CDF_P_grouped_c_smud = process_and_plot_utility_data("SMUD", actual_hourly, GHG_data, text_size=14)
 # %%
-CDF_P = all_hourly_charging_P_data[(all_hourly_charging_P_data["X_CHR"] != 0) &
-                                   (all_hourly_charging_P_data["GHG Cost"] != 0.191) &
-                                   (all_hourly_charging_P_data["Tariff"] != "TOU Rate - Home")]
-CDF_P["Electricity_Paid"] = CDF_P["Electricity_Cost"] / abs(CDF_P["X_CHR"])
-CDF_P = pd.merge(CDF_P, df_GHG, on="Hour", how="left")
-CDF_P['GHG_value'] = CDF_P.apply(lambda row: row['GHG_value'] * -1 if row['X_CHR'] < 0 else row['GHG_value'], axis=1)
-# %%
-costs_A_TOU_rate_hourly_in["Electricity_Paid"] = costs_A_TOU_rate_hourly_in["Electricity_Cost"] / abs(costs_A_TOU_rate_hourly_in["X_CHR"])
-costs_A_TOU_rate_hourly_in = pd.merge(costs_A_TOU_rate_hourly_in, df_GHG, on="Hour", how="left")
-# %%
-
-charged_N = calculate_charge_difference(CDF_N)
-charged_P = calculate_charge_difference(CDF_P)
-
-charged = pd.concat([charged_N, charged_P], axis=0)
+plot_benefit_vs_degradation(TOU_rates_total, num_vehicles=50, Utility="PGE", title='TOU_PGE', lb=800, ub=1200, title_size=12, axis_text_size=12)
+plot_benefit_vs_degradation(EV_rates_total, num_vehicles=50, Utility="PGE", title='EV_PGE', lb=1500, ub=5800, title_size=12, axis_text_size=12)
+plot_benefit_vs_degradation(RT_rates_total_TOU, num_vehicles=50, Utility="PGE", title='RT_PGE_TOU', lb=3000, ub=10500, title_size=12, axis_text_size=12)
+plot_benefit_vs_degradation(RT_rates_total_EV, num_vehicles=50, Utility="PGE", title='RT_PGE_EV', lb=3000, ub=10500, title_size=12, axis_text_size=12)
 
 
-draw_box_plot(charged, text_size=14)
-# %%
-# Run the function using your data with charging speed consideration
-# plot_styled_box_by_scenario(CDF_N,costs_A_TOU_rate_hourly_in, xaxis="Hourly Cost of Electric Vehicle Charging/Discharging ($)", x_column='Electricity_Cost', y_column='Scenarios',
-#                      charge_type_column='Charging Type', tariff_column='Tariff', behavior_column='X_CHR', speed_column='Charging Speed', xlimit=30)
-#
-# plot_styled_box_by_scenario(CDF_N,costs_A_TOU_rate_hourly_in,  xaxis="Hourly Emission of Electric Vehicle Charging/Discharging (g CO2)",x_column='GHG_value', y_column='Scenarios',
-#                      charge_type_column='Charging Type', tariff_column='Tariff', behavior_column='X_CHR', speed_column='Charging Speed', xlimit=7000)
+plot_benefit_vs_degradation(TOU_rates_total, num_vehicles=50, Utility="SCE", title='TOU_SCE', lb=1500, ub=4000, title_size=12, axis_text_size=12)
+plot_benefit_vs_degradation(EV_rates_total, num_vehicles=50, Utility="SCE", title='EV_SCE', lb=2000, ub=7500, title_size=12, axis_text_size=12)
+plot_benefit_vs_degradation(RT_rates_total_TOU, num_vehicles=50, Utility="SCE", title='RT_SCE_TOU', lb=3000, ub=12000, title_size=12, axis_text_size=12)
+plot_benefit_vs_degradation(RT_rates_total_EV, num_vehicles=50, Utility="SCE", title='RT_SCE_EV', lb=3000, ub=12000, title_size=12, axis_text_size=12)
 
-CDF_N_grouped_g = calculate_ghg_difference(CDF_N, costs_A_TOU_rate_hourly_in)
-CDF_N_grouped_c = calculate_cost_difference(CDF_N, costs_A_TOU_rate_hourly_in)
-# %%
-# Run the function using your data with charging speed consideration
-# plot_styled_box_by_scenarioP(CDF_P,costs_A_TOU_rate_hourly_in, xaxis="Hourly Cost of Electric Vehicle Charging/Discharging ($)" , x_column='Electricity_Cost', y_column='Scenarios',
-#                      charge_type_column='Charging Type', tariff_column='Tariff', behavior_column='X_CHR', speed_column='Charging Speed', xlimit=30)
-#
-# plot_styled_box_by_scenarioP(CDF_P,costs_A_TOU_rate_hourly_in,  xaxis="Hourly Emission of Electric Vehicle Charging/Discharging (g CO2)" ,x_column='GHG_value', y_column='Scenarios',
-#                      charge_type_column='Charging Type', tariff_column='Tariff', behavior_column='X_CHR', speed_column='Charging Speed', xlimit=7000)
+plot_benefit_vs_degradation(TOU_rates_total, num_vehicles=50, Utility="SDGE", title='TOU_SDGE', lb=1000, ub=2000, title_size=12, axis_text_size=12)
+plot_benefit_vs_degradation(EV_rates_total, num_vehicles=50, Utility="SDGE", title='EV_SDGE', lb=2000, ub=7500, title_size=12, axis_text_size=12)
+plot_benefit_vs_degradation(RT_rates_total_TOU, num_vehicles=50, Utility="SDGE", title='RT_SDGE_TOU', lb=3000, ub=13500, title_size=12, axis_text_size=12)
+plot_benefit_vs_degradation(RT_rates_total_EV, num_vehicles=50, Utility="SDGE", title='RT_SDGE_EV', lb=3000, ub=13000, title_size=12, axis_text_size=12)
 
-CDF_P_grouped_g = calculate_ghg_difference(CDF_P, costs_A_TOU_rate_hourly_in)
-CDF_P_grouped_c = calculate_cost_difference(CDF_P, costs_A_TOU_rate_hourly_in)
-#%%
-# plot_cdf_by_group(CDF_N, costs_A_TOU_rate_hourly_in, "Electricity_Cost", "Hourly Cost of Electric Vehicle Charging/Discharging ($)", figsize=(10, 6))
-# plot_cdf_by_group(CDF_N, costs_A_TOU_rate_hourly_in, "GHG_value", 'Carbon Intensity (g/kWh)', figsize=(10, 6))
-
-#%%
-# plot_cdf_by_group(CDF_P, costs_A_TOU_rate_hourly_in, "Electricity_Paid", 'Electricity Cost ($/kWh)', figsize=(10, 6))
-# plot_cdf_by_group(CDF_P, costs_A_TOU_rate_hourly_in, "GHG_value", 'Carbon Intensity (g/kWh)', figsize=(10, 6))
-
+plot_benefit_vs_degradation(TOU_rates_total, num_vehicles=50, Utility="SMUD", title='TOU_SMUD', lb=1000, ub=2000, title_size=12, axis_text_size=12)
+plot_benefit_vs_degradation(EV_rates_total, num_vehicles=50, Utility="SMUD", title='EV_SMUD', lb=1000, ub=2500, title_size=12, axis_text_size=12)
+plot_benefit_vs_degradation(RT_rates_total_TOU, num_vehicles=50, Utility="SMUD", title='RT_SMUD_TOU', lb=1600, ub=4000, title_size=12, axis_text_size=12)
+plot_benefit_vs_degradation(RT_rates_total_EV, num_vehicles=50, Utility="SMUD", title='RT_SMUD_EV', lb=1600, ub=4000, title_size=12, axis_text_size=12)
 # %%
 
-plot_benefit_vs_degradation(EV_rates_total, num_vehicles=50, baseline_cost_scenario='last',title="EV-Rate",  lb=1500, ub=5200, title_size=12, axis_text_size=12)
-plot_benefit_vs_degradation(TOU_rates_total, num_vehicles=50, baseline_cost_scenario='last',title="TOU-Rate", lb=900, ub=1800, title_size=12, axis_text_size=12)
-
-plot_benefit_vs_degradation(RT_rates_total, num_vehicles=50, baseline_cost_scenario='second_last',title="RTvsTOU",lb=3000, ub=11500, title_size=12, axis_text_size=12)
-plot_benefit_vs_degradation(RT_rates_total, num_vehicles=50, baseline_cost_scenario='last',title="RTvsEV", lb=3000, ub=11500, title_size=12, axis_text_size=12)
+plot_box_by_tariff(CDF_N_grouped_g_pge, CDF_P_grouped_g_pge, figtitle="Annual CO$_2$ Emissions Reduction per\nVehicle from V1G and V2G Participation (tonne)",  fz=16, show_dollar=False)
 
 # %%
-test1 = plot_benefit_by_scenario(voilin_input_data, scenario_filter='Actual', charging_speed=19, fz=18)
-test2 = plot_benefit_by_scenario(voilin_input_data, scenario_filter='Potential', charging_speed=19, fz=18)
+import matplotlib.pyplot as plt
+import numpy as np
 
-# %%
+def plot_benefit_vs_degradation(df, num_vehicles, Utility="PGE", title='title', lb=0, ub=1000, title_size=18, axis_text_size=18, ax=None, last_in_row=False):
 
-plot_box_by_tariff(CDF_N_grouped_g, CDF_P_grouped_g, figtitle="Annual CO$_2$ Emissions Reduction per\nVehicle from V1G and V2G Participation (tonne)",  fz=16, show_dollar=False)
-plot_box_by_tariff(CDF_N_grouped_c, CDF_P_grouped_c, figtitle="Annual Gross Revenue from Electricity\nSales per Vehicle V1G and V2G Participation ($)",  fz=16, show_dollar=True)
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(6, 6))  # Create a new plot if no axis is provided
+
+    df1 = df.copy()
+    df1 = df1[df1["Utility"] == Utility]
+    # Convert Charging Speed to string and remove any trailing '.0'
+    df1['Charging_Speed'] = df1['Charging_Speed'].astype(str).str.rstrip('.0')
+    df1['Scenarios'] = df1['Charge_Type'] + ' - ' + df1['Charging_Speed'] + ' - ' + df1['Scenario'] + ' - ' + df1['V2G_Location']
+    baseline_row = df1.iloc[-1]
+
+    # Calculate baseline cost
+    baseline_cost = baseline_row['Electricity_Cost'] + baseline_row['Degradation_Cost']
+
+    # Calculate the net benefit (Total Cost Savings) against the baseline and degradation separately, adjusted per vehicle
+    df1['Total_Benefit'] = (baseline_cost - (df1['Electricity_Cost'] + df1['Degradation_Cost'])) / num_vehicles
+    df1['Degradation_Cost'] = df1['Degradation_Cost'] / num_vehicles
+
+    # Define the speeds and locations for plotting
+    speeds = ['6.6', '12', '19']  # Speeds to consider
+    locations = ['Home', 'Home_Work']  # Locations for V2G scenarios
+    location_labels = {'Home': '', 'Home_Work': ''}
+
+    bar_height = 0.5  # Height for each grouped bar
+    smart_colors = ['#fdad1a', '#fdad1a', '#fdad1a']  # Color for Smart Charging bars
+    v2g_colors = {
+        'Home': '#219f71',  # Color for V2G Home
+        'Home_Work': '#004a6d',  # Color for V2G Home_Work
+        'Degradation': '#c4383a'  # Red for degradation
+    }
+
+    y_positions = []  # Store y positions for each group
+    scenario_labels = []  # Store labels for y positions
+    group_positions = []  # To store the center of each group for annotation
+    current_y = 2  # Current y position
+
+    # Smart Charging Section: Add each speed separately with labels
+    smart_bar_offsets = np.linspace(-bar_height / 20, bar_height / 20, len(speeds)) / 2
+
+    for idx, speed in enumerate(speeds):
+        smart_data = df1[
+            (df1['Charge_Type'] == 'Smart') &
+            (df1['Charging_Speed'] == speed) &
+            (df1['V2G_Location'] == 'Home_Work')
+        ]
+        if not smart_data.empty:
+            degradation_cost = -smart_data['Degradation_Cost'].values[0]
+            total_benefit = smart_data['Total_Benefit'].values[0]
+
+            # Plot Degradation and Benefit bars directly next to each other for each speed
+            ax.barh(current_y + smart_bar_offsets[idx] - bar_height / 4 + 0.25, degradation_cost, height=bar_height, color=v2g_colors['Degradation'])
+            ax.barh(current_y + smart_bar_offsets[idx] + bar_height / 4, total_benefit, height=bar_height, color=smart_colors[idx])
+
+            # Add text labels for Degradation and Benefit
+            ax.text(degradation_cost - 0.25, current_y + smart_bar_offsets[idx], f"${degradation_cost:.2f}", ha='right', va='center', fontsize=axis_text_size - 2)
+            ax.text(total_benefit + 0.25, current_y + smart_bar_offsets[idx], f"${total_benefit:.2f}", ha='left', va='center', fontsize=axis_text_size - 2)
+
+            # Add individual labels for each speed
+            y_positions.append(current_y + smart_bar_offsets[idx])
+            scenario_labels.append(f"{speed} kW")  # Only show speed for Smart Charging
+            current_y += 0.6
+    # Calculate center of Smart Charging section for annotation
+    group_positions.append(np.mean([2.5 + offset for offset in smart_bar_offsets]))
+
+    # Helper function to plot side-by-side bars for V2G with locations
+    def plot_v2g_section(data, section_label):
+        nonlocal current_y
+        centers = []
+
+        for speed in speeds:
+            bar_offsets = np.linspace(-bar_height * 1.15, bar_height * 1.15, len(locations)) / 2
+            for i, loc in enumerate(locations):
+                loc_data = data[(data['Charging_Speed'] == speed) & (data['V2G_Location'] == loc)]
+                if not loc_data.empty:
+                    degradation_cost = -loc_data['Degradation_Cost'].values[0]
+                    total_benefit = loc_data['Total_Benefit'].values[0]
+
+                    # Plot bars for degradation and benefit
+                    ax.barh(current_y + bar_offsets[i] + 0.5, degradation_cost, height=bar_height, color=v2g_colors['Degradation'])
+                    ax.barh(current_y + bar_offsets[i] + bar_height, total_benefit, height=bar_height, color=v2g_colors[loc])
+
+                    # Add text labels
+                    ax.text(degradation_cost - 0.2, current_y + bar_offsets[i] + 0.5, f"${degradation_cost:.2f}", ha='right', va='center', fontsize=axis_text_size - 2)
+                    ax.text(total_benefit + 0.2, current_y + bar_offsets[i] + 0.5, f"${total_benefit:.2f}", ha='left', va='center', fontsize=axis_text_size - 2)
+
+                    # Add labels
+                    y_positions.append(current_y + bar_offsets[i] + 0.5)
+                    scenario_labels.append(f"{speed} kW {location_labels[loc]}")
+                    centers.append(current_y + bar_offsets[i])
+
+            current_y += 1.5  # Update the y position
+        return np.mean(centers)  # Return the center position
+
+    # Plot V2G Actual section by all speeds and store its center
+    v2g_actual_data = df1[(df1['Charge_Type'] == 'Bidirectional') & (df1['Scenario'] == 'No_change')]
+    if not v2g_actual_data.empty:
+        center = plot_v2g_section(v2g_actual_data, "V2G / No Change in Plugging Behavior")
+        group_positions.append(center)
+
+    # Plot V2G Potential section by all speeds and store its center
+    v2g_potential_data = df1[(df1['Charge_Type'] == 'Bidirectional') & (df1['Scenario'] == 'With_change')]
+    if not v2g_potential_data.empty:
+        center = plot_v2g_section(v2g_potential_data, "V2G / Plugging-in When Parked")
+        group_positions.append(center)
+
+    # Customize y-axis labels with all speeds retained
+    ax.set_yticks(y_positions)
+    ax.set_yticklabels(scenario_labels, fontsize=axis_text_size - 2)
+    ax.axvline(0, color='grey', linewidth=1)
+    ax.set_xlim(-lb, ub)
+    ax.grid(True, axis='x', linestyle='--', alpha=0.7)
+
+    # Add panel-specific title
+    ax.set_title(title, fontsize=title_size)
+
+    if last_in_row:
+        ax2 = ax.twinx()  # Add secondary y-axis
+        ax2.set_yticks(y_positions)
+        ax2.set_yticklabels(scenario_labels, fontsize=axis_text_size - 2)
+
+    return ax
+
+def plot_benefit_vs_degradation_panel(data_list, num_vehicles, utilities, titles, lbs, ubs, y_title, x_title, figsize=(20, 6), title_size=18, axis_text_size=14):
+    num_plots = len(data_list)  # Number of panels
+    fig, axes = plt.subplots(1, num_plots, figsize=figsize, sharey=True)  # Create a single row of plots
+
+    for i, ax in enumerate(axes):
+        # Call the existing plot function, passing the specific axis
+        plot_benefit_vs_degradation(
+            data_list[i],
+            num_vehicles=num_vehicles,
+            Utility=utilities[i],
+            title=titles[i],
+            lb=lbs[i],
+            ub=ubs[i],
+            title_size=title_size,
+            axis_text_size=axis_text_size,
+            ax=ax  # Pass the specific axis
+        )
+
+        # Set the title for each panel
+        ax.set_title(titles[i], fontsize=title_size)
+
+    # Add shared y-axis and x-axis labels
+    fig.text(0.04, 0.5, y_title, va='center', rotation='vertical', fontsize=title_size)  # Y-axis
+    fig.text(0.5, 0.04, x_title, ha='center', fontsize=title_size)  # X-axis
+
+    # Adjust layout
+    plt.tight_layout(rect=[0.05, 0.05, 1, 0.95])
+    plt.show()
+
+
+plot_benefit_vs_degradation_panel(
+    data_list=[TOU_rates_total, EV_rates_total, RT_rates_total_TOU, RT_rates_total_EV],
+    num_vehicles=50,
+    utilities=["PGE", "PGE", "PGE", "PGE"],
+    titles=['TOU_PGE', 'EV_PGE', 'RT_PGE_TOU', 'RT_PGE_EV'],
+    lbs=[800, 1500, 3000, 3000],
+    ubs=[1200, 5800, 10500, 10500],
+    y_title="Net Benefit and Degradation Cost per Vehicle ($)",
+    x_title="Charging Scenarios",
+    figsize=(24, 6),
+    title_size=14,
+    axis_text_size=12
+)
