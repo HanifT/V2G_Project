@@ -5,6 +5,7 @@ import zipfile
 import json
 import matplotlib as plt
 from parking import draw_RT
+import numpy as np
 # %% Price input
 utility_data = {
     "PGE": {
@@ -101,195 +102,210 @@ utility_data = {
         }
     }
 }
-#
-#
-# # %% Define the directory where your CSV files are located
-# folder_path = '/Users/haniftayarani/V2G_data/real_time_price'
-#
-# # Initialize an empty list to store the dataframes
-# dataframes_list = []
-#
-# # Loop through all the files in the directory
-# for file_name in os.listdir(folder_path):
-#     # Check if the file is a CSV
-#     if file_name.endswith('.csv'):
-#         # Construct full file path
-#         file_path = os.path.join(folder_path, file_name)
-#         # Read the CSV file and store it in the list
-#         df = pd.read_csv(file_path)
-#         dataframes_list.append(df)
-#
-# # Concatenate all the dataframes in the list
-# combined_price = pd.concat(dataframes_list, ignore_index=True)
-# combined_price = combined_price[combined_price["LMP_TYPE"] == "LMP"]
-# combined_price = combined_price.drop(columns=["NODE_ID_XML", "NODE", "PNODE_RESMRID", "POS",
-#                                               "OPR_INTERVAL", "MARKET_RUN_ID", "XML_DATA_ITEM",
-#                                               "GRP_TYPE", "OPR_DT"])
-#
-# # Assuming your dataframe is named 'df'
-# pge_values = ['PGCC', 'PGEB', 'PGF1', 'PGFG', 'PGHB', 'PGKN', 'PGLP', 'PGNB', 'PGNC',
-#               'PGNP', 'PGNV', 'PGP2', 'PGSA', 'PGSB', 'PGSF', 'PGSI', 'PGSN', 'PGST', 'PGZP']
-# sce_values = ['SCEC', 'SCEN', 'SCEW', 'SCHD', 'SCLD', 'SCNW']
-#
-# sdge_values = ['SDG1']
-#
-# smud_values = ["SMD"]
-#
-# # Filter rows where the first four letters of 'NODE_ID' values are in the list
-# combined_price_PGE = combined_price[combined_price['NODE_ID'].str[:4].isin(pge_values)]
-# combined_price_SCE = combined_price[combined_price['NODE_ID'].str[:4].isin(sce_values)]
-# combined_price_SDGE = combined_price[combined_price['NODE_ID'].str[:4].isin(sdge_values)]
-# combined_price_SMUD = combined_price[combined_price['NODE_ID'].str[:3].isin(smud_values)]
-#
-#
-# lengths_dict = {
-#     'PGE': len(combined_price_PGE),
-#     'SCE': len(combined_price_SCE),
-#     'SDGE': len(combined_price_SDGE),
-#     'SMUD': len(combined_price_SMUD)
-#
-# }
-# rt_dict = combined_price_PGE.to_dict()
-#
-# # %%
-# # Path to the folder containing the zip file
-# folder_path = '/Users/haniftayarani/V2G_Project/demand'
-#
-# # Iterate over all files in the folder
-# for file_name in os.listdir(folder_path):
-#     # Check if the file is a zip file
-#     if file_name.endswith('.zip'):
-#         # Unzip the file
-#         with zipfile.ZipFile(os.path.join(folder_path, file_name), 'r') as zip_ref:
-#             zip_ref.extractall(folder_path)
-#
-# # Get a list of all CSV files in the extracted folder
-# csv_files = [f for f in os.listdir(folder_path) if f.endswith('.csv')]
-#
-# # Read each CSV file and concatenate them into one DataFrame
-# dfs = []
-# for csv_file in csv_files:
-#     df = pd.read_csv(os.path.join(folder_path, csv_file))
-#     dfs.append(df)
-#
-# combined_demand = pd.concat(dfs, ignore_index=True)
-# combined_demand = combined_demand.drop(columns=["LOAD_TYPE", "OPR_DT", "OPR_INTERVAL", "MARKET_RUN_ID", "LABEL", "MARKET_RUN_ID", "POS"])
-#
-# combined_demand_PGE = combined_demand[combined_demand["TAC_AREA_NAME"] == "PGE-TAC"].reset_index(drop=True)
-# combined_demand_PGE = combined_demand_PGE.drop_duplicates(subset=["INTERVALSTARTTIME_GMT"])
-#
-# combined_demand_SCE = combined_demand[combined_demand["TAC_AREA_NAME"] == "SCE-TAC"].reset_index(drop=True)
-# combined_demand_SCE = combined_demand_SCE.drop_duplicates(subset=["INTERVALSTARTTIME_GMT"])
-#
-# combined_demand_SDGE = combined_demand[combined_demand["TAC_AREA_NAME"] == "SDGE-TAC"].reset_index(drop=True)
-# combined_demand_SDGE = combined_demand_SDGE.drop_duplicates(subset=["INTERVALSTARTTIME_GMT"])
-#
-# combined_demand_SMUD = combined_demand[combined_demand["TAC_AREA_NAME"] == "BANCSMUD"].reset_index(drop=True)
-# combined_demand_SMUD = combined_demand_SMUD.drop_duplicates(subset=["INTERVALSTARTTIME_GMT"])
-#
-#
-# # %%
-# class RTPricer:
-#     def __init__(self, df1, df2, price_tou_low, price_tou_high, range_start, range_end, label):
-#         self.df1 = df1
-#         self.df2 = df2
-#         self.price_tou_low = price_tou_low
-#         self.price_tou_high = price_tou_high
-#         self.range_start = range_start
-#         self.range_end = range_end
-#         self.label = label
-#
-#     def calculate_rt_price(self):
-#         # Calculate average load
-#         self.df1["average_load"] = self.df1["MW"] / len(self.df2["NODE_ID"].unique())
-#
-#         # Merge demand data with price data
-#         self.df2 = pd.merge(self.df2, self.df1[["INTERVALSTARTTIME_GMT", "average_load"]], on="INTERVALSTARTTIME_GMT", how="left")
-#
-#         # Calculate revenue
-#         self.df2["revenue"] = self.df2["average_load"] * self.df2["MW"]
-#         total_rt = self.df2["revenue"].sum()
-#
-#         # Calculate total TOU revenue
-#         pge_price_tou = {key: self.price_tou_low if (key in range(self.range_start)) or (key in range(self.range_end, 24)) else self.price_tou_high for key in range(24)}
-#         pge_load = self.df1.groupby("OPR_HR")["MW"].sum().to_dict()
-#         total_tou = sum(pge_price_tou[key] * pge_load[key] for key in pge_price_tou if key in pge_load)
-#
-#         # Adjust factor
-#         adj_factor = total_tou / total_rt
-#
-#         # Calculate real-time price
-#         self.df2["rt_price"] = self.df2["MW"] * adj_factor
-#         self.df2["rt_price_generation"] = self.df2["MW"]
-#
-#         return self.df2, adj_factor
-#
-#     # def plot_histogram(self):
-#     #     plt.hist(self.df2["rt_price"]/1000, bins=20, color='skyblue', edgecolor='black')
-#     #
-#     #     # Add labels and title with the provided label
-#     #     plt.xlabel('Real-time Price ($/kWh)')
-#     #     plt.ylabel('Frequency')
-#     #     plt.title(f'Histogram of Real-time Price for {self.label}')  # Include the provided label in the title
-#     #
-#     #     # Show plot
-#     #     plt.show()
-#
-# # %%
-#
-#
-# rt_pricer = RTPricer(combined_demand_PGE, combined_price_PGE, 480, 500, 16, 21, "PGE")
-# combined_price_PGE_new, adj_factor_PGE = rt_pricer.calculate_rt_price()
-# # rt_pricer.plot_histogram()
-# combined_price_PGE_new["INTERVALSTARTTIME_PST"] = pd.to_datetime(combined_price_PGE_new["INTERVALSTARTTIME_GMT"]).dt.tz_convert('America/Los_Angeles')
-# combined_price_PGE_new['hour_of_year_start'] = combined_price_PGE_new['INTERVALSTARTTIME_PST'].apply(lambda x: ((x.dayofyear - 1) * 24 + x.hour))
-# combined_price_PGE_new = combined_price_PGE_new.sort_values(by="INTERVALSTARTTIME_PST").reset_index(drop=True)
-# combined_price_PGE_average = combined_price_PGE_new[["hour_of_year_start", "rt_price"]]
-# combined_price_PGE_average = combined_price_PGE_average.groupby("hour_of_year_start")["rt_price"].mean()
-# combined_price_PGE_average = pd.concat([combined_price_PGE_average, combined_price_PGE_average, combined_price_PGE_average], axis=0).reset_index(drop=True).to_dict()
-#
-# combined_price_PGE_old = combined_price_PGE_new[["hour_of_year_start", "rt_price_generation"]]
-# combined_price_PGE_old = combined_price_PGE_old.groupby("hour_of_year_start")["rt_price_generation"].mean()
-# combined_price_PGE_old = pd.concat([combined_price_PGE_old,combined_price_PGE_old], axis=0).reset_index(drop=True).to_dict()
-# draw_RT(combined_price_PGE_old)
-# draw_RT(combined_price_PGE_average)
-#
-# rt_pricer = RTPricer(combined_demand_SCE, combined_price_SCE, 375, 545, 16, 21, "SCE")
-# combined_price_SCE_new, adj_factor_SCE = rt_pricer.calculate_rt_price()
-# # rt_pricer.plot_histogram()
-# combined_price_SCE_new["INTERVALSTARTTIME_PST"] = pd.to_datetime(combined_price_SCE_new["INTERVALSTARTTIME_GMT"]).dt.tz_convert('America/Los_Angeles')
-# combined_price_SCE_new['hour_of_year_start'] = combined_price_SCE_new['INTERVALSTARTTIME_PST'].apply(lambda x: ((x.dayofyear - 1) * 24 + x.hour))
-# combined_price_SCE_new = combined_price_SCE_new.sort_values(by="INTERVALSTARTTIME_PST").reset_index(drop=True)
-# combined_price_SCE_average = combined_price_SCE_new[["hour_of_year_start", "rt_price"]]
-# combined_price_SCE_average = combined_price_SCE_average.groupby("hour_of_year_start")["rt_price"].mean()
-# combined_price_SCE_average = pd.concat([combined_price_SCE_average, combined_price_SCE_average, combined_price_SCE_average], axis=0).reset_index(drop=True).to_dict()
-#
-#
-# rt_pricer = RTPricer(combined_demand_SDGE, combined_price_SDGE, 481, 561, 16, 21, "SDGE")
-# combined_price_SDGE_new, adj_factor_SDGE = rt_pricer.calculate_rt_price()
-# # rt_pricer.plot_histogram()
-# combined_price_SDGE_new["INTERVALSTARTTIME_PST"] = pd.to_datetime(combined_price_SDGE_new["INTERVALSTARTTIME_GMT"]).dt.tz_convert('America/Los_Angeles')
-# combined_price_SDGE_new['hour_of_year_start'] = combined_price_SDGE_new['INTERVALSTARTTIME_PST'].apply(lambda x: ((x.dayofyear - 1) * 24 + x.hour))
-# combined_price_SDGE_new = combined_price_SDGE_new.sort_values(by="INTERVALSTARTTIME_PST").reset_index(drop=True)
-# combined_price_SDGE_average = combined_price_SDGE_new[["hour_of_year_start", "rt_price"]]
-# combined_price_SDGE_average = combined_price_SDGE_average.groupby("hour_of_year_start")["rt_price"].mean()
-# combined_price_SDGE_average = pd.concat([combined_price_SDGE_average, combined_price_SDGE_average, combined_price_SDGE_average], axis=0).reset_index(drop=True).to_dict()
-#
-#
-# rt_pricer = RTPricer(combined_demand_SMUD, combined_price_SMUD, 212, 270, 17, 20, "SMUD")
-# combined_price_SMUD_new, adj_factor_SMUD = rt_pricer.calculate_rt_price()
-# # rt_pricer.plot_histogram()
-# combined_price_SMUD_new["INTERVALSTARTTIME_PST"] = pd.to_datetime(combined_price_SMUD_new["INTERVALSTARTTIME_GMT"]).dt.tz_convert('America/Los_Angeles')
-# combined_price_SMUD_new['hour_of_year_start'] = combined_price_SMUD_new['INTERVALSTARTTIME_PST'].apply(lambda x: ((x.dayofyear - 1) * 24 + x.hour))
-# combined_price_SMUD_new = combined_price_SMUD_new.sort_values(by="INTERVALSTARTTIME_PST").reset_index(drop=True)
-# combined_price_SMUD_average = combined_price_SMUD_new[["hour_of_year_start", "rt_price"]]
-# combined_price_SMUD_average = combined_price_SMUD_average.groupby("hour_of_year_start")["rt_price"].mean()
-# combined_price_SMUD_average = pd.concat([combined_price_SMUD_average, combined_price_SMUD_average, combined_price_SMUD_average], axis=0).reset_index(drop=True).to_dict()
-#
-# draw_RT(combined_price_PGE_average)
-# draw_RT(combined_price_SCE_average)
-# draw_RT(combined_price_SDGE_average)
-# draw_RT(combined_price_SMUD_average)
+
+# %% Define the directory where your CSV files are located
+folder_path = '/Users/haniftayarani/V2G_data/real_time_price'
+
+# Initialize an empty list to store the dataframes
+dataframes_list = []
+
+# Loop through all the files in the directory
+for file_name in os.listdir(folder_path):
+    # Check if the file is a CSV
+    if file_name.endswith('.csv'):
+        # Construct full file path
+        file_path = os.path.join(folder_path, file_name)
+        # Read the CSV file and store it in the list
+        df = pd.read_csv(file_path)
+        dataframes_list.append(df)
+
+# Concatenate all the dataframes in the list
+combined_price = pd.concat(dataframes_list, ignore_index=True)
+combined_price = combined_price[combined_price["LMP_TYPE"] == "LMP"]
+combined_price = combined_price.drop(columns=["NODE_ID_XML", "NODE", "PNODE_RESMRID", "POS",
+                                              "OPR_INTERVAL", "MARKET_RUN_ID", "XML_DATA_ITEM",
+                                              "GRP_TYPE", "OPR_DT"])
+
+# Assuming your dataframe is named 'df'
+pge_values = ['PGCC', 'PGEB', 'PGF1', 'PGFG', 'PGHB', 'PGKN', 'PGLP', 'PGNB', 'PGNC',
+              'PGNP', 'PGNV', 'PGP2', 'PGSA', 'PGSB', 'PGSF', 'PGSI', 'PGSN', 'PGST', 'PGZP']
+sce_values = ['SCEC', 'SCEN', 'SCEW', 'SCHD', 'SCLD', 'SCNW']
+
+sdge_values = ['SDG1']
+
+smud_values = ["SMD"]
+
+# Filter rows where the first four letters of 'NODE_ID' values are in the list
+combined_price_PGE = combined_price[combined_price['NODE_ID'].str[:4].isin(pge_values)]
+combined_price_SCE = combined_price[combined_price['NODE_ID'].str[:4].isin(sce_values)]
+combined_price_SDGE = combined_price[combined_price['NODE_ID'].str[:4].isin(sdge_values)]
+combined_price_SMUD = combined_price[combined_price['NODE_ID'].str[:3].isin(smud_values)]
+
+
+lengths_dict = {
+    'PGE': len(combined_price_PGE),
+    'SCE': len(combined_price_SCE),
+    'SDGE': len(combined_price_SDGE),
+    'SMUD': len(combined_price_SMUD)
+
+}
+rt_dict = combined_price_PGE.to_dict()
+
+# %%
+# Path to the folder containing the zip file
+folder_path = '/Users/haniftayarani/V2G_Project/demand'
+
+# Iterate over all files in the folder
+for file_name in os.listdir(folder_path):
+    # Check if the file is a zip file
+    if file_name.endswith('.zip'):
+        # Unzip the file
+        with zipfile.ZipFile(os.path.join(folder_path, file_name), 'r') as zip_ref:
+            zip_ref.extractall(folder_path)
+
+# Get a list of all CSV files in the extracted folder
+csv_files = [f for f in os.listdir(folder_path) if f.endswith('.csv')]
+
+# Read each CSV file and concatenate them into one DataFrame
+dfs = []
+for csv_file in csv_files:
+    df = pd.read_csv(os.path.join(folder_path, csv_file))
+    dfs.append(df)
+
+combined_demand = pd.concat(dfs, ignore_index=True)
+combined_demand = combined_demand.drop(columns=["LOAD_TYPE", "OPR_DT", "OPR_INTERVAL", "MARKET_RUN_ID", "LABEL", "MARKET_RUN_ID", "POS"])
+
+combined_demand_PGE = combined_demand[combined_demand["TAC_AREA_NAME"] == "PGE-TAC"].reset_index(drop=True)
+combined_demand_PGE = combined_demand_PGE.drop_duplicates(subset=["INTERVALSTARTTIME_GMT"])
+
+combined_demand_SCE = combined_demand[combined_demand["TAC_AREA_NAME"] == "SCE-TAC"].reset_index(drop=True)
+combined_demand_SCE = combined_demand_SCE.drop_duplicates(subset=["INTERVALSTARTTIME_GMT"])
+
+combined_demand_SDGE = combined_demand[combined_demand["TAC_AREA_NAME"] == "SDGE-TAC"].reset_index(drop=True)
+combined_demand_SDGE = combined_demand_SDGE.drop_duplicates(subset=["INTERVALSTARTTIME_GMT"])
+
+combined_demand_SMUD = combined_demand[combined_demand["TAC_AREA_NAME"] == "BANCSMUD"].reset_index(drop=True)
+combined_demand_SMUD = combined_demand_SMUD.drop_duplicates(subset=["INTERVALSTARTTIME_GMT"])
+
+
+# %%
+class RTPricer:
+    def __init__(self, df1, df2, price_tou_low, price_tou_high, range_start, range_end, label):
+        self.df1 = df1
+        self.df2 = df2
+        self.price_tou_low = price_tou_low
+        self.price_tou_high = price_tou_high
+        self.range_start = range_start
+        self.range_end = range_end
+        self.label = label
+
+    def calculate_rt_price(self):
+        # Calculate average load
+        self.df1["average_load"] = self.df1["MW"] / len(self.df2["NODE_ID"].unique())
+
+        # Merge demand data with price data
+        self.df2 = pd.merge(self.df2, self.df1[["INTERVALSTARTTIME_GMT", "average_load"]], on="INTERVALSTARTTIME_GMT", how="left")
+
+        # Calculate revenue
+        self.df2["revenue"] = self.df2["average_load"] * self.df2["MW"]
+        total_rt = self.df2["revenue"].sum()
+
+        # Calculate total TOU revenue
+        pge_price_tou = {key: self.price_tou_low if (key in range(self.range_start)) or (key in range(self.range_end, 24)) else self.price_tou_high for key in range(24)}
+        pge_load = self.df1.groupby("OPR_HR")["MW"].sum().to_dict()
+        total_tou = sum(pge_price_tou[key] * pge_load[key] for key in pge_price_tou if key in pge_load)
+
+        # Adjust factor
+        adj_factor = total_tou / total_rt
+
+        # Calculate real-time price
+        self.df2["rt_price"] = self.df2["MW"] * adj_factor
+        self.df2["rt_price_generation"] = self.df2["MW"]
+
+        return self.df2, adj_factor
+
+    # def plot_histogram(self):
+    #     plt.hist(self.df2["rt_price"]/1000, bins=20, color='skyblue', edgecolor='black')
+    #
+    #     # Add labels and title with the provided label
+    #     plt.xlabel('Real-time Price ($/kWh)')
+    #     plt.ylabel('Frequency')
+    #     plt.title(f'Histogram of Real-time Price for {self.label}')  # Include the provided label in the title
+    #
+    #     # Show plot
+    #     plt.show()
+
+# %%
+
+
+rt_pricer = RTPricer(combined_demand_PGE, combined_price_PGE, 480, 500, 16, 21, "PGE")
+combined_price_PGE_new, adj_factor_PGE = rt_pricer.calculate_rt_price()
+# rt_pricer.plot_histogram()
+combined_price_PGE_new["INTERVALSTARTTIME_PST"] = pd.to_datetime(combined_price_PGE_new["INTERVALSTARTTIME_GMT"]).dt.tz_convert('America/Los_Angeles')
+combined_price_PGE_new['hour_of_year_start'] = combined_price_PGE_new['INTERVALSTARTTIME_PST'].apply(lambda x: ((x.dayofyear - 1) * 24 + x.hour))
+combined_price_PGE_new = combined_price_PGE_new.sort_values(by="INTERVALSTARTTIME_PST").reset_index(drop=True)
+combined_price_PGE_average = combined_price_PGE_new[["hour_of_year_start", "rt_price"]]
+combined_price_PGE_average = combined_price_PGE_average.groupby("hour_of_year_start")["rt_price"].mean()
+combined_price_PGE_average = pd.concat([combined_price_PGE_average, combined_price_PGE_average, combined_price_PGE_average], axis=0).reset_index(drop=True).to_dict()
+
+combined_price_PGE_old = combined_price_PGE_new[["hour_of_year_start", "rt_price_generation"]]
+combined_price_PGE_old = combined_price_PGE_old.groupby("hour_of_year_start")["rt_price_generation"].mean()
+combined_price_PGE_old = pd.concat([combined_price_PGE_old,combined_price_PGE_old], axis=0).reset_index(drop=True).to_dict()
+draw_RT(combined_price_PGE_old)
+draw_RT(combined_price_PGE_average)
+
+rt_pricer = RTPricer(combined_demand_SCE, combined_price_SCE, 375, 545, 16, 21, "SCE")
+combined_price_SCE_new, adj_factor_SCE = rt_pricer.calculate_rt_price()
+# rt_pricer.plot_histogram()
+combined_price_SCE_new["INTERVALSTARTTIME_PST"] = pd.to_datetime(combined_price_SCE_new["INTERVALSTARTTIME_GMT"]).dt.tz_convert('America/Los_Angeles')
+combined_price_SCE_new['hour_of_year_start'] = combined_price_SCE_new['INTERVALSTARTTIME_PST'].apply(lambda x: ((x.dayofyear - 1) * 24 + x.hour))
+combined_price_SCE_new = combined_price_SCE_new.sort_values(by="INTERVALSTARTTIME_PST").reset_index(drop=True)
+combined_price_SCE_average = combined_price_SCE_new[["hour_of_year_start", "rt_price"]]
+combined_price_SCE_average = combined_price_SCE_average.groupby("hour_of_year_start")["rt_price"].mean()
+combined_price_SCE_average = pd.concat([combined_price_SCE_average, combined_price_SCE_average, combined_price_SCE_average], axis=0).reset_index(drop=True).to_dict()
+combined_price_SCE_old = combined_price_SCE_new[["hour_of_year_start", "rt_price_generation"]]
+combined_price_SCE_old = combined_price_SCE_old.groupby("hour_of_year_start")["rt_price_generation"].mean()
+combined_price_SCE_old = pd.concat([combined_price_SCE_old,combined_price_SCE_old], axis=0).reset_index(drop=True).to_dict()
+
+
+rt_pricer = RTPricer(combined_demand_SDGE, combined_price_SDGE, 481, 561, 16, 21, "SDGE")
+combined_price_SDGE_new, adj_factor_SDGE = rt_pricer.calculate_rt_price()
+# rt_pricer.plot_histogram()
+combined_price_SDGE_new["INTERVALSTARTTIME_PST"] = pd.to_datetime(combined_price_SDGE_new["INTERVALSTARTTIME_GMT"]).dt.tz_convert('America/Los_Angeles')
+combined_price_SDGE_new['hour_of_year_start'] = combined_price_SDGE_new['INTERVALSTARTTIME_PST'].apply(lambda x: ((x.dayofyear - 1) * 24 + x.hour))
+combined_price_SDGE_new = combined_price_SDGE_new.sort_values(by="INTERVALSTARTTIME_PST").reset_index(drop=True)
+combined_price_SDGE_average = combined_price_SDGE_new[["hour_of_year_start", "rt_price"]]
+combined_price_SDGE_average = combined_price_SDGE_average.groupby("hour_of_year_start")["rt_price"].mean()
+combined_price_SDGE_average = pd.concat([combined_price_SDGE_average, combined_price_SDGE_average, combined_price_SDGE_average], axis=0).reset_index(drop=True).to_dict()
+combined_price_SDGE_old = combined_price_SDGE_new[["hour_of_year_start", "rt_price_generation"]]
+combined_price_SDGE_old = combined_price_SDGE_old.groupby("hour_of_year_start")["rt_price_generation"].mean()
+combined_price_SDGE_old = pd.concat([combined_price_SDGE_old,combined_price_SDGE_old], axis=0).reset_index(drop=True).to_dict()
+
+
+rt_pricer = RTPricer(combined_demand_SMUD, combined_price_SMUD, 212, 270, 17, 20, "SMUD")
+combined_price_SMUD_new, adj_factor_SMUD = rt_pricer.calculate_rt_price()
+# rt_pricer.plot_histogram()
+combined_price_SMUD_new["INTERVALSTARTTIME_PST"] = pd.to_datetime(combined_price_SMUD_new["INTERVALSTARTTIME_GMT"]).dt.tz_convert('America/Los_Angeles')
+combined_price_SMUD_new['hour_of_year_start'] = combined_price_SMUD_new['INTERVALSTARTTIME_PST'].apply(lambda x: ((x.dayofyear - 1) * 24 + x.hour))
+combined_price_SMUD_new = combined_price_SMUD_new.sort_values(by="INTERVALSTARTTIME_PST").reset_index(drop=True)
+combined_price_SMUD_average = combined_price_SMUD_new[["hour_of_year_start", "rt_price"]]
+combined_price_SMUD_average = combined_price_SMUD_average.groupby("hour_of_year_start")["rt_price"].mean()
+combined_price_SMUD_average = pd.concat([combined_price_SMUD_average, combined_price_SMUD_average, combined_price_SMUD_average], axis=0).reset_index(drop=True).to_dict()
+combined_price_SMUD_old = combined_price_SMUD_new[["hour_of_year_start", "rt_price_generation"]]
+combined_price_SMUD_old = combined_price_SMUD_old.groupby("hour_of_year_start")["rt_price_generation"].mean()
+combined_price_SMUD_old = pd.concat([combined_price_SMUD_old,combined_price_SMUD_old], axis=0).reset_index(drop=True).to_dict()
+
+draw_RT(combined_price_PGE_old)
+draw_RT(combined_price_SMUD_old)
+
+draw_RT(combined_price_PGE_average)
+draw_RT(combined_price_SCE_average)
+draw_RT(combined_price_SDGE_average)
+draw_RT(combined_price_SMUD_average)
+
+
+draw_RT_scatter(price_dict, 8760)
+
 #
 # # %%
 # with open("combined_price_PGE_average.json", "w") as json_file:
@@ -483,3 +499,80 @@ def get_utility_prices(region):
     commercial_prices = {int(key): value for key, value in commercial_prices.items()}
 
     return rt_rate, tou_prices, ev_rate_prices, commercial_prices
+# %%
+
+price_dict = {
+    'PG&E AP Node': {key: combined_price_PGE_old[key] for key in list(combined_price_PGE_old.keys())[:8760]},
+    'SCE AP Node': {key: combined_price_SCE_old[key] for key in list(combined_price_SCE_old.keys())[:8760]},
+    'SDG&E AP Node': {key: combined_price_SDGE_old[key] for key in list(combined_price_SDGE_old.keys())[:8760]},
+    'SMUD WAP Node': {key: combined_price_SMUD_old[key] for key in list(combined_price_SMUD_old.keys())[:8760]},
+    'PG&E': {key: combined_price_PGE_average[key] for key in list(combined_price_PGE_average.keys())[:8760]},
+    'SCE': {key: combined_price_SCE_average[key] for key in list(combined_price_SCE_average.keys())[:8760]},
+    'SDG&E': {key: combined_price_SDGE_average[key] for key in list(combined_price_SDGE_average.keys())[:8760]},
+    'SMUD': {key: combined_price_SMUD_average[key] for key in list(combined_price_SMUD_average.keys())[:8760]},
+}
+
+
+def draw_RT_faceted_columns(price_dict, fontsizes=14, labelsizes=14):
+    """
+    Creates faceted line plots for electricity prices in two columns: AP Nodes and Consumer Side.
+
+    :param price_dict: A dictionary where keys are legend names and values are dictionaries of hourly electricity prices.
+    """
+    ap_nodes = ["PG&E AP Node", "SCE AP Node", "SDG&E AP Node", "SMUD WAP Node"]
+    consumer_nodes = ["PG&E", "SCE", "SDG&E", "SMUD"]
+    colors = {
+        "PG&E": "#219f71",
+        "SCE": "#004a6d",
+        "SDG&E": "#c4383a",
+        "SMUD": "#fdad1a",
+    }
+
+    # Set up the grid layout for two columns
+    fig, axes = plt.subplots(len(ap_nodes), 2, figsize=(18, 4 * len(ap_nodes)), sharex=True, gridspec_kw={'width_ratios': [1, 1]})
+
+    for i, (ap_node, consumer_node) in enumerate(zip(ap_nodes, consumer_nodes)):
+        # Process AP Node data (first column)
+        ap_prices = [price_dict[ap_node][hour] for hour in sorted(price_dict[ap_node].keys())[:8760]]
+        hours = np.arange(0, 8760, 1)
+        axes[i, 0].plot(hours, ap_prices, label=ap_node, color=colors[ap_node.split()[0]])
+        axes[i, 0].set_ylabel(ap_node.split()[0], fontsize=fontsizes)
+        axes[i, 0].tick_params(axis='x', which='major', labelsize=labelsizes)
+        axes[i, 0].tick_params(axis='y', which='major', labelsize=labelsizes)
+        axes[i, 0].set_ylim(0, max(ap_prices) + 500)
+        axes[i, 0].grid(True)
+
+        # Process Consumer Node data (second column)
+        consumer_prices = [price_dict[consumer_node][hour] for hour in sorted(price_dict[consumer_node].keys())[:8760]]
+        axes[i, 1].tick_params(axis='x', which='major', labelsize=labelsizes)
+        ax2 = axes[i, 1].twinx()  # Create a secondary y-axis for the second column
+        ax2.plot(hours, consumer_prices, label=consumer_node, color=colors[consumer_node])
+        ax2.tick_params(axis='x', which='major', labelsize=labelsizes)
+        ax2.tick_params(axis='y', which='major', labelsize=labelsizes)
+        ax2.set_ylim(0, max(consumer_prices) + 500)
+        ax2.grid(True)
+        axes[i, 1].grid(True)
+
+        # Add column titles only for the first row
+        if i == 0:
+            axes[i, 0].set_title('Wholesale Price', fontsize=fontsizes+5)
+            axes[i, 1].set_title('Consumer Price', fontsize=fontsizes+5)
+
+        # Hide the primary y-axis on the second column
+        axes[i, 1].yaxis.set_visible(False)
+
+    # Add a shared x-axis label
+    fig.text(0.53, 0.04, 'Hour', ha='center', fontsize=fontsizes+5)
+
+    # Add a shared y-axis label for the first column
+    fig.text(0.02, 0.5, 'Price ($ / MWh)', va='center', rotation='vertical', fontsize=fontsizes+5)
+
+    # Adjust layout
+    plt.tight_layout(rect=[0.05, 0.05, 1, 0.95])
+    plt.show()
+
+
+draw_RT_faceted_columns(price_dict, fontsizes=24, labelsizes=20)
+
+
+
